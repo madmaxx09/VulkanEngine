@@ -6,6 +6,7 @@
 #include <ranges>
 #include <vector>
 #include <algorithm>
+#include <map>
 
 class Renderer
 {
@@ -25,14 +26,16 @@ class Renderer
 
 
 
-        bool Init();
-        bool initVulkan();
-        bool setupDebugMessenger();
-        bool createInstance();
+        void Init();
+        void initVulkan();
+        void setupDebugMessenger();
+        void createInstance();
+        void pickPhysicalDevice();
         std::vector<const char*> getRequiredInstanceExtensions();
     private:
         vk::raii::Context context;
         vk::raii::Instance instance = nullptr;
         vk::raii::DebugUtilsMessengerEXT debugMessenger = nullptr;
+        vk::raii::PhysicalDevice physicalDevice = nullptr;
         
 };

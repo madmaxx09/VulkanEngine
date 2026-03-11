@@ -3,33 +3,31 @@
 const std::vector<char const *> validationLayers = {
     "VK_LAYER_KHRONOS_validation"};
 
+std::vector<const char*> requiredDeviceExtension = {vk::KHRSwapchainExtensionName};
+
 #ifdef NDEBUG
 constexpr bool enableValidationLayers = false;
 #else
 constexpr bool enableValidationLayers = true;
 #endif
 
-bool Renderer::Init()
+void Renderer::Init()
 {
-    if(!initVulkan())
-        return false;
-    if(!setupDebugMessenger())
-        return false;
-    return true;
+    initVulkan();
 }
 
 
-bool Renderer::initVulkan()
+void Renderer::initVulkan()
 {
-    if(!createInstance())
-        return false;
-    return true;
+    createInstance();
+    setupDebugMessenger();
+    pickPhysicalDevice();
 }
 
-bool Renderer::setupDebugMessenger()
+void Renderer::setupDebugMessenger()
 {
     if (!enableValidationLayers)
-        return true;
+        return;
 
     vk::DebugUtilsMessageSeverityFlagsEXT severityFlags(vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose |
                                                         vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning |
@@ -40,14 +38,14 @@ bool Renderer::setupDebugMessenger()
                                                                             .messageType     = messageTypeFlags,
                                                                             .pfnUserCallback = &debugCallback};
     debugMessenger = instance.createDebugUtilsMessengerEXT(debugUtilsMessengerCreateInfoEXT);
-    return true;
+    return;
 }
 
-bool Renderer::createInstance()
+void Renderer::createInstance()
 {
-    constexpr vk::ApplicationInfo appInfo{  .pApplicationName   = "Hello Triangle",
+    constexpr vk::ApplicationInfo appInfo{  .pApplicationName   = "Coloc",
                                             .applicationVersion = VK_MAKE_VERSION(1, 0, 0),
-                                            .pEngineName        = "No Engine",
+                                            .pEngineName        = "Max Engine",
                                             .engineVersion      = VK_MAKE_VERSION(1, 0, 0),
                                             .apiVersion         = vk::ApiVersion14};
     
@@ -67,7 +65,6 @@ bool Renderer::createInstance()
     if (unsupportedLayerIt != requiredLayers.end())
     {
         throw std::runtime_error("Required layer not supported: " + std::string(*unsupportedLayerIt));
-        return false;
     }
     
     auto requiredExtensions = getRequiredInstanceExtensions();
@@ -84,7 +81,6 @@ bool Renderer::createInstance()
     if (unsupportedPropertyIt != requiredExtensions.end())
     {
         throw std::runtime_error("Required extension not supported: " + std::string(*unsupportedPropertyIt));
-        return false;
     }
 
     vk::InstanceCreateInfo createInfo{  .pApplicationInfo        = &appInfo,
@@ -92,6 +88,7 @@ bool Renderer::createInstance()
                                         .ppEnabledLayerNames     = requiredLayers.data(),
                                         .enabledExtensionCount   = static_cast<uint32_t>(requiredExtensions.size()),
                                         .ppEnabledExtensionNames = requiredExtensions.data()};
+                                    
     instance = vk::raii::Instance(context, createInfo);
 
     auto extensions = context.enumerateInstanceExtensionProperties();
@@ -100,8 +97,49 @@ bool Renderer::createInstance()
     {
         std::cout << "\t" << extension.extensionName << "\n"; 
     }
+}
 
-    return true;
+bool isDeviceSuitable( vk::raii::PhysicalDevice const & physicalDevice )
+{
+  // Check if the physicalDevice supports the Vulkan 1.3 API version
+  bool supportsVulkan1_3 = physicalDevice.getProperties().apiVersion >= vk::ApiVersion13;
+
+  // Check if any of the queue families support graphics operations
+  auto queueFamilies    = physicalDevice.getQueueFamilyProperties();
+  bool supportsGraphics = std::ranges::any_of( queueFamilies, []( auto const & qfp ) { return !!( qfp.queueFlags & vk::QueueFlagBits::eGraphics ); } );
+
+  // Check if all required physicalDevice extensions are available
+  auto availableDeviceExtensions = physicalDevice.enumerateDeviceExtensionProperties();
+  bool supportsAllRequiredExtensions =
+    std::ranges::all_of( requiredDeviceExtension,
+                         [&availableDeviceExtensions]( auto const & requiredDeviceExtension )
+                         {
+                           return std::ranges::any_of( availableDeviceExtensions,
+                                                       [requiredDeviceExtension]( auto const & availableDeviceExtension )
+                                                       { return strcmp( availableDeviceExtension.extensionName, requiredDeviceExtension ) == 0; } );
+                         } );
+
+  // Check if the physicalDevice supports the required features (dynamic rendering and extended dynamic state)
+  auto features =
+    physicalDevice
+      .template getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
+  bool supportsRequiredFeatures = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
+                                  features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
+
+  // Return true if the physicalDevice meets all the criteria
+  return supportsVulkan1_3 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;
+}
+
+void Renderer::pickPhysicalDevice()
+{
+  std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
+  auto const devIter = std::ranges::find_if( physicalDevices, [&]( auto const & physicalDevice ) { return isDeviceSuitable( physicalDevice ); } );
+  if ( devIter == physicalDevices.end() )
+  {
+    throw std::runtime_error( "failed to find a suitable GPU!" );
+  }
+  physicalDevice = *devIter;
+  return; 
 }
 
 std::vector<const char*> Renderer::getRequiredInstanceExtensions()
