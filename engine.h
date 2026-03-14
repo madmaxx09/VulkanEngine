@@ -6,10 +6,10 @@
 class Engine
 {
     public:
-        Engine() = default;
+        Engine() : window(), renderer(window) {}
         ~Engine() = default;
 
-        bool Start(const std::string &name, int width, int height);
+        void Start(const std::string &name, int width, int height);
         void Run();
 
         Window getWindow() { return window; };

@@ -28,6 +28,7 @@ LIBS = `pkg-config --libs glfw3 vulkan` -lGL
 all: $(NAME)
 
 $(NAME): $(OBJS)
+	bash shaders/compile.sh
 	$(CXX) -o $@ $^ $(LIBS)
 	rm *.o
 

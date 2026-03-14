@@ -12,7 +12,7 @@ class Window
         Window() = default;
         ~Window() = default;
 
-        bool Init(const std::string &name, int height, int width);
+        void Init(const std::string &name, int height, int width);
         GLFWwindow* getGLFWwindow() { return window; }
         bool shouldClose() { return glfwWindowShouldClose(window); }
     private:

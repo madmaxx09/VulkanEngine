@@ -1,14 +1,11 @@
 #include "engine.h"
 #include <iostream>
 
-bool Engine::Start(const std::string &name, int width, int height)
+void Engine::Start(const std::string &name, int width, int height)
 {
-    if(!window.Init(name, height, width))
-        return false;
-    if(!renderer.Init())
-        return false;
+    window.Init(name, height, width);
+    renderer.init();
     std::cout << "Engine setup done" << std::endl;
-    return true;
 }
 
 void Engine::Run()
@@ -16,5 +13,7 @@ void Engine::Run()
     while(!window.shouldClose())
     {
         glfwPollEvents();
+        renderer.drawFrame();
     }
+    renderer.idle();
 }

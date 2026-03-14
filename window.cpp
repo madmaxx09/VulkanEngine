@@ -1,12 +1,11 @@
 #include "window.h"
 #include <iostream>
 
-bool Window::Init(const std::string &name, int height, int width)
+void Window::Init(const std::string &name, int height, int width)
 {
     if (!glfwInit()) 
     {
         throw std::runtime_error("GLFW init fail");
-        return false;
     }
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE); 
@@ -16,8 +15,6 @@ bool Window::Init(const std::string &name, int height, int width)
     {
         glfwTerminate();
         throw std::runtime_error("GLFW createwindow fail");
-        return false;
     }
     glfwSetWindowUserPointer(window, this);
-    return true;
 }

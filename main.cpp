@@ -15,8 +15,7 @@ int main()
     try
     {
         Engine engine;
-        if (!engine.Start("compile", 1280, 800))
-            throw std::runtime_error("Engine init failed");
+        engine.Start("compile", 1280, 800);
     
         engine.Run();
         return 0;
