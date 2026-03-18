@@ -1,6 +1,12 @@
 #include "window.h"
 #include <iostream>
 
+static void framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+    auto wind = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+    wind->framebufferResized = true;
+    std::cout << "wind callback";
+}
+
 void Window::Init(const std::string &name, int height, int width)
 {
     if (!glfwInit()) 
@@ -17,4 +23,5 @@ void Window::Init(const std::string &name, int height, int width)
         throw std::runtime_error("GLFW createwindow fail");
     }
     glfwSetWindowUserPointer(window, this);
+    glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
 }

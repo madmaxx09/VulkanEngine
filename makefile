@@ -25,6 +25,8 @@ CXXFLAGS += `pkg-config --cflags glfw3 vulkan`
 
 LIBS = `pkg-config --libs glfw3 vulkan` -lGL
 
+
+
 all: $(NAME)
 
 $(NAME): $(OBJS)
@@ -43,3 +45,6 @@ fclean: clean
 	rm -f $(NAME)
 
 re: fclean all
+
+debug: CXXFLAGS += -O0 -g3 -DDEBUG
+debug: re

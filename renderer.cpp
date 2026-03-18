@@ -11,6 +11,7 @@ constexpr bool enableValidationLayers = false;
 #else
 constexpr bool enableValidationLayers = true;
 #endif
+#define VULKAN_HPP_HANDLE_ERROR_OUT_OF_DATE_AS_SUCCESS
 
 void Renderer::init()
 {
@@ -29,8 +30,17 @@ void Renderer::initVulkan()
     createImageViews();
     createGraphicsPipeline();
     createCommandPool();
-	createCommandBuffer();
+    createVertexBuffer();
+	createCommandBuffers();
     createSyncObjects();
+}
+
+void Renderer::cleanup()
+{
+    cleanupSwapChain();
+
+    glfwDestroyWindow(window.getGLFWwindow());
+    glfwTerminate();
 }
 
 void Renderer::setupDebugMessenger()
@@ -313,7 +323,12 @@ void Renderer::createGraphicsPipeline()
     vk::PipelineShaderStageCreateInfo fragShaderStageInfo{.stage = vk::ShaderStageFlagBits::eFragment, .module = shaderModule, .pName = "fragMain"};
     vk::PipelineShaderStageCreateInfo shaderStages[] = {vertShaderStageInfo, fragShaderStageInfo};
 
-    vk::PipelineVertexInputStateCreateInfo   vertexInputInfo;
+    auto bindingDescription    = Vertex::getBindingDescription();
+    auto attributeDescriptions = Vertex::getAttributeDescriptions();
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ .vertexBindingDescriptionCount   = 1,
+                                                            .pVertexBindingDescriptions      = &bindingDescription,
+                                                            .vertexAttributeDescriptionCount = static_cast<uint32_t>( attributeDescriptions.size() ),
+                                                            .pVertexAttributeDescriptions    = attributeDescriptions.data() };
     vk::PipelineInputAssemblyStateCreateInfo inputAssembly{.topology = vk::PrimitiveTopology::eTriangleList};
     vk::PipelineViewportStateCreateInfo      viewportState{.viewportCount = 1, .scissorCount = 1};
 
@@ -366,21 +381,92 @@ void Renderer::createCommandPool()
     commandPool = vk::raii::CommandPool(device, poolInfo);
 }
 
-void Renderer::createCommandBuffer()
+void Renderer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory)
+{
+    vk::BufferCreateInfo bufferInfo{ .size = size, .usage = usage, .sharingMode = vk::SharingMode::eExclusive };
+    buffer = vk::raii::Buffer(device, bufferInfo);
+    vk::MemoryRequirements memRequirements = buffer.getMemoryRequirements();
+    vk::MemoryAllocateInfo allocInfo{ .allocationSize = memRequirements.size, .memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties) };
+    bufferMemory = vk::raii::DeviceMemory(device, allocInfo);
+    buffer.bindMemory(*bufferMemory, 0);
+}
+
+void Renderer::createVertexBuffer()
+{
+    vk::DeviceSize bufferSize = sizeof(vertices[0]) * vertices.size();
+
+    vk::BufferCreateInfo stagingInfo{ .size = bufferSize, .usage = vk::BufferUsageFlagBits::eTransferSrc, .sharingMode = vk::SharingMode::eExclusive };
+    vk::raii::Buffer stagingBuffer(device, stagingInfo);
+    vk::MemoryRequirements memRequirementsStaging = stagingBuffer.getMemoryRequirements();
+    vk::MemoryAllocateInfo memoryAllocateInfoStaging{  .allocationSize = memRequirementsStaging.size, .memoryTypeIndex = findMemoryType(memRequirementsStaging.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent) };
+    vk::raii::DeviceMemory stagingBufferMemory(device, memoryAllocateInfoStaging);
+
+    stagingBuffer.bindMemory(stagingBufferMemory, 0);
+    void* dataStaging = stagingBufferMemory.mapMemory(0, stagingInfo.size);
+    memcpy(dataStaging, vertices.data(), stagingInfo.size);
+    stagingBufferMemory.unmapMemory();
+
+    vk::BufferCreateInfo bufferInfo{ .size = bufferSize,  .usage = vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, .sharingMode = vk::SharingMode::eExclusive };
+    vertexBuffer = vk::raii::Buffer(device, bufferInfo);
+
+    vk::MemoryRequirements memRequirements = vertexBuffer.getMemoryRequirements();
+    vk::MemoryAllocateInfo memoryAllocateInfo{  .allocationSize = memRequirements.size, .memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal) };
+    vertexBufferMemory = vk::raii::DeviceMemory( device, memoryAllocateInfo );
+
+    vertexBuffer.bindMemory( *vertexBufferMemory, 0 );
+
+    copyBuffer(stagingBuffer, vertexBuffer, stagingInfo.size);
+}
+
+void Renderer::copyBuffer(vk::raii::Buffer &srcBuffer, vk::raii::Buffer &dstBuffer, vk::DeviceSize size)
 {
     vk::CommandBufferAllocateInfo allocInfo{.commandPool = commandPool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1};
-    commandBuffer = std::move(vk::raii::CommandBuffers(device, allocInfo).front());
+    vk::raii::CommandBuffer       commandCopyBuffer = std::move(device.allocateCommandBuffers(allocInfo).front());
+    commandCopyBuffer.begin(vk::CommandBufferBeginInfo{.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit});
+    commandCopyBuffer.copyBuffer(*srcBuffer, *dstBuffer, vk::BufferCopy(0, 0, size));
+    commandCopyBuffer.end();
+    queue.submit(vk::SubmitInfo{.commandBufferCount = 1, .pCommandBuffers = &*commandCopyBuffer}, nullptr);
+    queue.waitIdle();
+}
+
+void Renderer::createCommandBuffers()
+{
+    commandBuffers.clear();
+    vk::CommandBufferAllocateInfo allocInfo{ .commandPool = commandPool, .level = vk::CommandBufferLevel::ePrimary,
+                                           .commandBufferCount = MAX_FRAMES_IN_FLIGHT };
+    commandBuffers = vk::raii::CommandBuffers( device, allocInfo );
 }
 
 void Renderer::createSyncObjects()
 {
-    presentCompleteSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo());
-    renderFinishedSemaphore = vk::raii::Semaphore(device, vk::SemaphoreCreateInfo());
-    drawFence = vk::raii::Fence(device, {.flags = vk::FenceCreateFlagBits::eSignaled});   
+    assert(presentCompleteSemaphores.empty() && renderFinishedSemaphores.empty() && inFlightFences.empty());
+
+    for (size_t i = 0; i < swapChainImages.size(); i++)
+    {
+        renderFinishedSemaphores.emplace_back(device, vk::SemaphoreCreateInfo());
+    }
+
+    for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        presentCompleteSemaphores.emplace_back(device, vk::SemaphoreCreateInfo());
+        inFlightFences.emplace_back(device, vk::FenceCreateInfo{.flags = vk::FenceCreateFlagBits::eSignaled});
+    }
+}
+
+uint32_t Renderer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties)
+{
+    vk::PhysicalDeviceMemoryProperties memProperties = physicalDevice.getMemoryProperties();
+    for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
+        if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+            return i;
+        }
+    }
+    throw std::runtime_error("failed to find suitable memory type!");
 }
 
 void Renderer::recordCommandBuffer(uint32_t imageIndex)
 {
+    auto &commandBuffer = commandBuffers[frameIndex];
     commandBuffer.begin({});
     // Before starting rendering, transition the swapchain image to COLOR_ATTACHMENT_OPTIMAL
     transition_image_layout(
@@ -404,11 +490,11 @@ void Renderer::recordCommandBuffer(uint32_t imageIndex)
         .layerCount           = 1,
         .colorAttachmentCount = 1,
         .pColorAttachments    = &attachmentInfo};
-
     commandBuffer.beginRendering(renderingInfo);
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, *graphicsPipeline);
     commandBuffer.setViewport(0, vk::Viewport(0.0f, 0.0f, static_cast<float>(swapChainExtent.width), static_cast<float>(swapChainExtent.height), 0.0f, 1.0f));
     commandBuffer.setScissor(0, vk::Rect2D(vk::Offset2D(0, 0), swapChainExtent));
+    commandBuffer.bindVertexBuffers(0, *vertexBuffer, {0});
     commandBuffer.draw(3, 1, 0, 0);
     commandBuffer.endRendering();
     // After rendering, transition the swapchain image to PRESENT_SRC
@@ -453,39 +539,93 @@ void Renderer::transition_image_layout(
         .dependencyFlags         = {},
         .imageMemoryBarrierCount = 1,
         .pImageMemoryBarriers    = &barrier};
-    commandBuffer.pipelineBarrier2(dependency_info);
+    commandBuffers[frameIndex].pipelineBarrier2(dependency_info);
 }
 
 void Renderer::drawFrame()
 {
-    queue.waitIdle();        // NOTE: for simplicity, wait for the queue to be idle before starting the frame
-                                // In the next chapter you see how to use multiple frames in flight and fences to sync
-
-    auto [result, imageIndex] = swapChain.acquireNextImage(UINT64_MAX, *presentCompleteSemaphore, nullptr);
-    recordCommandBuffer(imageIndex);
-
-    device.resetFences(*drawFence);
-    vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
-    const vk::SubmitInfo   submitInfo{.waitSemaphoreCount = 1, .pWaitSemaphores = &*presentCompleteSemaphore, .pWaitDstStageMask = &waitDestinationStageMask, .commandBufferCount = 1, .pCommandBuffers = &*commandBuffer, .signalSemaphoreCount = 1, .pSignalSemaphores = &*renderFinishedSemaphore};
-    queue.submit(submitInfo, *drawFence);
-    result = device.waitForFences(*drawFence, vk::True, UINT64_MAX);
-    if (result != vk::Result::eSuccess)
+    // Note: inFlightFences, presentCompleteSemaphores, and commandBuffers are indexed by frameIndex,
+    //       while renderFinishedSemaphores is indexed by imageIndex
+    auto fenceResult = device.waitForFences(*inFlightFences[frameIndex], vk::True, UINT64_MAX);
+    if (fenceResult != vk::Result::eSuccess)
     {
         throw std::runtime_error("failed to wait for fence!");
     }
 
-    const vk::PresentInfoKHR presentInfoKHR{.waitSemaphoreCount = 1, .pWaitSemaphores = &*renderFinishedSemaphore, .swapchainCount = 1, .pSwapchains = &*swapChain, .pImageIndices = &imageIndex};
-    result = queue.presentKHR(presentInfoKHR);
-    switch (result)
+    auto [result, imageIndex] = swapChain.acquireNextImage(UINT64_MAX, *presentCompleteSemaphores[frameIndex], nullptr);
+
+    // Due to VULKAN_HPP_HANDLE_ERROR_OUT_OF_DATE_AS_SUCCESS being defined, eErrorOutOfDateKHR can be checked as a result
+    // here and does not need to be caught by an exception.
+    if (result == vk::Result::eErrorOutOfDateKHR)
     {
-        case vk::Result::eSuccess:
-            break;
-        case vk::Result::eSuboptimalKHR:
-            std::cout << "vk::Queue::presentKHR returned vk::Result::eSuboptimalKHR !\n";
-            break;
-        default:
-            break;        // an unexpected result is returned!
+        recreateSwapChain();
+        return;
     }
+    // On other success codes than eSuccess and eSuboptimalKHR we just throw an exception.
+    // On any error code, aquireNextImage already threw an exception.
+    else if (result != vk::Result::eSuccess && result != vk::Result::eSuboptimalKHR)
+    {
+        assert(result == vk::Result::eTimeout || result == vk::Result::eNotReady);
+        throw std::runtime_error("failed to acquire swap chain image!");
+    }
+
+    // Only reset the fence if we are submitting work
+    device.resetFences(*inFlightFences[frameIndex]);
+
+    commandBuffers[frameIndex].reset();
+    recordCommandBuffer(imageIndex);
+
+    vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
+    const vk::SubmitInfo   submitInfo{.waitSemaphoreCount   = 1,
+                                        .pWaitSemaphores      = &*presentCompleteSemaphores[frameIndex],
+                                        .pWaitDstStageMask    = &waitDestinationStageMask,
+                                        .commandBufferCount   = 1,
+                                        .pCommandBuffers      = &*commandBuffers[frameIndex],
+                                        .signalSemaphoreCount = 1,
+                                        .pSignalSemaphores    = &*renderFinishedSemaphores[imageIndex]};
+    queue.submit(submitInfo, *inFlightFences[frameIndex]);
+
+    const vk::PresentInfoKHR presentInfoKHR{.waitSemaphoreCount = 1,
+                                            .pWaitSemaphores    = &*renderFinishedSemaphores[imageIndex],
+                                            .swapchainCount     = 1,
+                                            .pSwapchains        = &*swapChain,
+                                            .pImageIndices      = &imageIndex};
+    result = queue.presentKHR(presentInfoKHR);
+    // Due to VULKAN_HPP_HANDLE_ERROR_OUT_OF_DATE_AS_SUCCESS being defined, eErrorOutOfDateKHR can be checked as a result
+    // here and does not need to be caught by an exception.
+    if ((result == vk::Result::eSuboptimalKHR) || (result == vk::Result::eErrorOutOfDateKHR) || window.framebufferResized)
+    {
+        window.framebufferResized = false;
+        recreateSwapChain();
+    }
+    else
+    {
+        // There are no other success codes than eSuccess; on any error code, presentKHR already threw an exception.
+        assert(result == vk::Result::eSuccess);
+    }
+    frameIndex = (frameIndex + 1) % MAX_FRAMES_IN_FLIGHT;
+}
+
+void Renderer::recreateSwapChain()
+{
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(window.getGLFWwindow(), &width, &height);
+    while (width == 0 || height == 0)
+    {
+        glfwGetFramebufferSize(window.getGLFWwindow(), &width, &height);
+        glfwWaitEvents();
+    }
+    device.waitIdle();
+    cleanupSwapChain();
+
+    createSwapChain();
+    createImageViews();
+}
+
+void Renderer::cleanupSwapChain()
+{
+    swapChainImageViews.clear();
+    swapChain = nullptr;
 }
 
 

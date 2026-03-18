@@ -2,15 +2,44 @@
 
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #include <vulkan/vulkan_raii.hpp>
+#define VULKAN_HPP_HANDLE_ERROR_OUT_OF_DATE_AS_SUCCESS
 #include "window.h"
 #include <ranges>
 #include <vector>
+#include <array>
 #include <algorithm>
 #include <map>
 #include <iterator>
 #include <cassert>
 #include <limits>
 #include <fstream>
+#include <glm/glm.hpp>
+
+constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+
+struct Vertex
+{
+	glm::vec2 pos;
+	glm::vec3 color;
+
+	static vk::VertexInputBindingDescription getBindingDescription()
+	{
+		return {0, sizeof(Vertex), vk::VertexInputRate::eVertex};
+	}
+
+	static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
+	{
+		return {
+		    vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, pos)),
+		    vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, color))};
+	}
+};
+
+const std::vector<Vertex> vertices = {
+    {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
+    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+};
 
 class Renderer
 {
@@ -29,10 +58,14 @@ class Renderer
         }
 
         void init();
+        void cleanup();
         void idle() { device.waitIdle(); }
         void drawFrame();
 
+        bool framebufferResized = false;
+
         private:
+
         Window &window;
         
         vk::raii::Context context;
@@ -55,25 +88,42 @@ class Renderer
         vk::raii::PipelineLayout pipelineLayout = nullptr;
         vk::raii::Pipeline       graphicsPipeline = nullptr;
         vk::raii::CommandPool    commandPool      = nullptr;
-	    vk::raii::CommandBuffer  commandBuffer    = nullptr;
+        vk::raii::Buffer vertexBuffer = nullptr;
+        vk::raii::DeviceMemory vertexBufferMemory = nullptr;
         
-        vk::raii::Semaphore presentCompleteSemaphore = nullptr;
-        vk::raii::Semaphore renderFinishedSemaphore = nullptr;
-        vk::raii::Fence drawFence = nullptr;
+	    std::vector<vk::raii::CommandBuffer> commandBuffers;
+        std::vector<vk::raii::Semaphore> presentCompleteSemaphores;
+        std::vector<vk::raii::Semaphore> renderFinishedSemaphores;
+        std::vector<vk::raii::Fence> inFlightFences;
+        
+        uint32_t                         frameIndex = 0;
+
         
 
         void initVulkan();
+
+
         void createInstance();
         void setupDebugMessenger();
         void createSurface();
         void pickPhysicalDevice();
         void createLogicalDevice();
+
         void createSwapChain();
+        void recreateSwapChain();
+        void cleanupSwapChain();
+
         void createImageViews();
         void createGraphicsPipeline();
         void createCommandPool();
-	    void createCommandBuffer();
+        void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory);
+        void copyBuffer(vk::raii::Buffer & srcBuffer, vk::raii::Buffer & dstBuffer, vk::DeviceSize size);
+
+        void createVertexBuffer();
+	    void createCommandBuffers();
         void createSyncObjects();
+
+        uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
         void recordCommandBuffer(uint32_t imageIndex);
         void transition_image_layout(

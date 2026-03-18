@@ -16,4 +16,5 @@ void Engine::Run()
         renderer.drawFrame();
     }
     renderer.idle();
+    renderer.cleanup();
 }
