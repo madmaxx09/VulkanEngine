@@ -16,7 +16,7 @@ int main()
     try
     {
         Engine engine;
-        engine.Start("compile", 1280, 800);
+        engine.Start("Max Engine", 1280, 800);
     
         engine.Run();
         return 0;

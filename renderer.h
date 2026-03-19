@@ -13,7 +13,10 @@
 #include <cassert>
 #include <limits>
 #include <fstream>
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <chrono>
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
@@ -35,10 +38,22 @@ struct Vertex
 	}
 };
 
+struct UniformBufferObject
+{
+    glm::mat4 model;
+    glm::mat4 view;
+    glm::mat4 proj;
+};
+
 const std::vector<Vertex> vertices = {
-    {{0.0f, -0.5f}, {1.0f, 1.0f, 1.0f}},
-    {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+};
+
+const std::vector<uint16_t> indices = {
+    0, 1, 2, 2, 3, 0
 };
 
 class Renderer
@@ -64,7 +79,7 @@ class Renderer
 
         bool framebufferResized = false;
 
-        private:
+    private:
 
         Window &window;
         
@@ -85,13 +100,22 @@ class Renderer
         vk::Extent2D                     swapChainExtent;
         std::vector<vk::raii::ImageView> swapChainImageViews;
         
+        vk::raii::DescriptorSetLayout descriptorSetLayout = nullptr;
         vk::raii::PipelineLayout pipelineLayout = nullptr;
         vk::raii::Pipeline       graphicsPipeline = nullptr;
         vk::raii::CommandPool    commandPool      = nullptr;
         vk::raii::Buffer vertexBuffer = nullptr;
         vk::raii::DeviceMemory vertexBufferMemory = nullptr;
-        
+        vk::raii::Buffer indexBuffer = nullptr;
+        vk::raii::DeviceMemory indexBufferMemory = nullptr;
+
 	    std::vector<vk::raii::CommandBuffer> commandBuffers;
+        std::vector<vk::raii::Buffer> uniformBuffers;
+        std::vector<vk::raii::DeviceMemory> uniformBuffersMemory;
+        std::vector<void*> uniformBuffersMapped;
+        vk::raii::DescriptorPool descriptorPool = nullptr;
+        std::vector<vk::raii::DescriptorSet> descriptorSets;
+
         std::vector<vk::raii::Semaphore> presentCompleteSemaphores;
         std::vector<vk::raii::Semaphore> renderFinishedSemaphores;
         std::vector<vk::raii::Fence> inFlightFences;
@@ -114,12 +138,18 @@ class Renderer
         void cleanupSwapChain();
 
         void createImageViews();
+        void createDescriptorSetLayout();
         void createGraphicsPipeline();
         void createCommandPool();
         void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory);
         void copyBuffer(vk::raii::Buffer & srcBuffer, vk::raii::Buffer & dstBuffer, vk::DeviceSize size);
 
         void createVertexBuffer();
+        void createIndexBuffer();
+        void createUniformBuffers();
+        void createDescriptorPool();
+        void createDescriptorSets();
+        void updateUniformBuffer(uint32_t currentImage);
 	    void createCommandBuffers();
         void createSyncObjects();
 

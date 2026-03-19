@@ -11,3 +11,11 @@ The presentation mode is arguably the most important setting for the swap chain,
     vk::PresentModeKHR::eMailbox: This is another variation of the second mode. Instead of blocking the application when the queue is full, the images that are already queued are simply replaced with the newer ones. This mode can be used to render frames as fast as possible while still avoiding tearing, resulting in fewer latency issues than standard vertical sync. This is commonly known as "triple buffering," although the existence of three buffers alone does not necessarily mean that the framerate is unlocked.
 
 ///////////
+
+Read about vertex and index buffer combination into a single buffer using offset in order to 
+increase cache effeciency link at the end of this chapter https://docs.vulkan.org/tutorial/latest/04_Vertex_buffers/03_Index_buffer.html
+
+///////////
+
+UBO layout has to match in the shader but alignment needs to be taken into account 
+https://docs.vulkan.org/spec/latest/chapters/interfaces.html#interfaces-resources-layout
