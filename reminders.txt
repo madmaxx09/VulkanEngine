@@ -19,3 +19,10 @@ increase cache effeciency link at the end of this chapter https://docs.vulkan.or
 
 UBO layout has to match in the shader but alignment needs to be taken into account 
 https://docs.vulkan.org/spec/latest/chapters/interfaces.html#interfaces-resources-layout
+
+////////////
+
+vulkan memory management article 
+https://developer.nvidia.com/vulkan-memory-management
+
+//////////////////

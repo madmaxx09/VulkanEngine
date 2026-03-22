@@ -1,4 +1,6 @@
 #include "renderer.h"
+#define STB_IMAGE_IMPLEMENTATION
+#include <stb_image.h>
 
 
 const std::vector<char const *> validationLayers = {
@@ -31,6 +33,9 @@ void Renderer::initVulkan()
     createDescriptorSetLayout();
     createGraphicsPipeline();
     createCommandPool();
+    createTextureImage();
+    createTextureImageView();
+    createTextureSampler();
     createVertexBuffer();
     createIndexBuffer();
     createUniformBuffers();
@@ -134,45 +139,45 @@ void Renderer::createSurface()
 
 bool isDeviceSuitable( vk::raii::PhysicalDevice const & physicalDevice )
 {
-  // Check if the physicalDevice supports the Vulkan 1.3 API version
-  bool supportsVulkan1_3 = physicalDevice.getProperties().apiVersion >= vk::ApiVersion13;
+    // Check if the physicalDevice supports the Vulkan 1.3 API version
+    bool supportsVulkan1_3 = physicalDevice.getProperties().apiVersion >= vk::ApiVersion13;
 
-  // Check if any of the queue families support graphics operations
-  auto queueFamilies    = physicalDevice.getQueueFamilyProperties();
-  bool supportsGraphics = std::ranges::any_of( queueFamilies, []( auto const & qfp ) { return !!( qfp.queueFlags & vk::QueueFlagBits::eGraphics ); } );
+    // Check if any of the queue families support graphics operations
+    auto queueFamilies    = physicalDevice.getQueueFamilyProperties();
+    bool supportsGraphics = std::ranges::any_of( queueFamilies, []( auto const & qfp ) { return !!( qfp.queueFlags & vk::QueueFlagBits::eGraphics ); } );
 
-  // Check if all required physicalDevice extensions are available
-  auto availableDeviceExtensions = physicalDevice.enumerateDeviceExtensionProperties();
-  bool supportsAllRequiredExtensions =
+    // Check if all required physicalDevice extensions are available
+    auto availableDeviceExtensions = physicalDevice.enumerateDeviceExtensionProperties();
+    bool supportsAllRequiredExtensions =
     std::ranges::all_of( requiredDeviceExtension,
-                         [&availableDeviceExtensions]( auto const & requiredDeviceExtension )
-                         {
-                           return std::ranges::any_of( availableDeviceExtensions,
-                                                       [requiredDeviceExtension]( auto const & availableDeviceExtension )
-                                                       { return strcmp( availableDeviceExtension.extensionName, requiredDeviceExtension ) == 0; } );
-                         } );
+                        [&availableDeviceExtensions]( auto const & requiredDeviceExtension )
+                        {
+                        return std::ranges::any_of( availableDeviceExtensions,
+                                                    [requiredDeviceExtension]( auto const & availableDeviceExtension )
+                                                    { return strcmp( availableDeviceExtension.extensionName, requiredDeviceExtension ) == 0; } );
+                        } );
 
-  // Check if the physicalDevice supports the required features (dynamic rendering and extended dynamic state)
-  auto features =
-    physicalDevice
-      .template getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
-  bool supportsRequiredFeatures = features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
-                                  features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
+    // Check if the physicalDevice supports the required features (dynamic rendering and extended dynamic state)
+    auto features = physicalDevice.template getFeatures2<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>();
 
-  // Return true if the physicalDevice meets all the criteria
-  return supportsVulkan1_3 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;
+    bool supportsRequiredFeatures = features.template get<vk::PhysicalDeviceFeatures2>().features.samplerAnisotropy &&
+                                features.template get<vk::PhysicalDeviceVulkan13Features>().dynamicRendering &&
+                                features.template get<vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>().extendedDynamicState;
+
+    // Return true if the physicalDevice meets all the criteria
+    return supportsVulkan1_3 && supportsGraphics && supportsAllRequiredExtensions && supportsRequiredFeatures;
 }
 
 void Renderer::pickPhysicalDevice()
 {
-  std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
-  auto const devIter = std::ranges::find_if( physicalDevices, [&]( auto const & physicalDevice ) { return isDeviceSuitable( physicalDevice ); } );
-  if ( devIter == physicalDevices.end() )
-  {
-    throw std::runtime_error( "failed to find a suitable GPU!" );
-  }
-  physicalDevice = *devIter;
-  return; 
+    std::vector<vk::raii::PhysicalDevice> physicalDevices = instance.enumeratePhysicalDevices();
+    auto const devIter = std::ranges::find_if( physicalDevices, [&]( auto const & physicalDevice ) { return isDeviceSuitable( physicalDevice ); } );
+    if ( devIter == physicalDevices.end() )
+    {
+        throw std::runtime_error( "failed to find a suitable GPU!" );
+    }
+    physicalDevice = *devIter;
+    return; 
 }
 
 void Renderer::createLogicalDevice()
@@ -196,16 +201,11 @@ void Renderer::createLogicalDevice()
     }
 
     // query for Vulkan 1.3 features
-    vk::StructureChain<vk::PhysicalDeviceFeatures2,
-                        vk::PhysicalDeviceVulkan11Features,
-                        vk::PhysicalDeviceVulkan13Features,
-                        vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT>
-        featureChain = {
-            {},                                                          // vk::PhysicalDeviceFeatures2
-            {.shaderDrawParameters = true},                              // vk::PhysicalDeviceVulkan11Features
-            {.synchronization2 = true, .dynamicRendering = true},        // vk::PhysicalDeviceVulkan13Features
-            {.extendedDynamicState = true}                               // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
-        };
+    vk::StructureChain<vk::PhysicalDeviceFeatures2, vk::PhysicalDeviceVulkan13Features, vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT> featureChain = {
+        {.features = {.samplerAnisotropy = true}},                   // vk::PhysicalDeviceFeatures2
+        {.synchronization2 = true, .dynamicRendering = true},        // vk::PhysicalDeviceVulkan13Features
+        {.extendedDynamicState = true}                               // vk::PhysicalDeviceExtendedDynamicStateFeaturesEXT
+    };
 
     // create a Device
     float                     queuePriority = 0.5f;
@@ -306,6 +306,13 @@ void Renderer::createImageViews()
     }
 }
 
+vk::raii::ImageView Renderer::createImageView(vk::raii::Image& image, vk::Format format)
+{
+    vk::ImageViewCreateInfo viewInfo{ .image = image, .viewType = vk::ImageViewType::e2D,
+        .format = format, .subresourceRange = { vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1 } };
+    return vk::raii::ImageView( device, viewInfo );
+}
+
 static std::vector<char> readFile(const std::string &filename)
 {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -391,6 +398,128 @@ void Renderer::createCommandPool()
     vk::CommandPoolCreateInfo poolInfo{.flags            = vk::CommandPoolCreateFlagBits::eResetCommandBuffer,
                                         .queueFamilyIndex = queueIndex};
     commandPool = vk::raii::CommandPool(device, poolInfo);
+}
+
+void Renderer::createTextureImage()
+{
+    int texWidth, texHeight, texChannels;
+    stbi_uc* pixels = stbi_load("textures/texture.jpg", &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+    vk::DeviceSize imageSize = texWidth * texHeight * 4;
+
+    if (!pixels) {
+        throw std::runtime_error("failed to load texture image!");
+    }
+
+    vk::raii::Buffer stagingBuffer({});
+    vk::raii::DeviceMemory stagingBufferMemory({});
+    createBuffer(imageSize, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent, stagingBuffer, stagingBufferMemory);
+    void* data = stagingBufferMemory.mapMemory(0, imageSize);
+    memcpy(data, pixels, imageSize);
+    stagingBufferMemory.unmapMemory();
+    stbi_image_free(pixels);
+
+    createImage(texWidth, texHeight, vk::Format::eR8G8B8A8Srgb, vk::ImageTiling::eOptimal, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal, textureImage, textureImageMemory);
+
+	transitionImageLayout(textureImage, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+	copyBufferToImage(stagingBuffer, textureImage, static_cast<uint32_t>(texWidth), static_cast<uint32_t>(texHeight));
+	transitionImageLayout(textureImage, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+}
+
+void Renderer::createTextureImageView()
+{
+    textureImageView = createImageView(textureImage, vk::Format::eR8G8B8A8Srgb);
+}
+
+void Renderer::createTextureSampler()
+{
+    vk::PhysicalDeviceProperties properties = physicalDevice.getProperties();
+    vk::SamplerCreateInfo        samplerInfo{
+                .magFilter        = vk::Filter::eLinear,
+                .minFilter        = vk::Filter::eLinear,
+                .mipmapMode       = vk::SamplerMipmapMode::eLinear,
+                .addressModeU     = vk::SamplerAddressMode::eRepeat,
+                .addressModeV     = vk::SamplerAddressMode::eRepeat,
+                .addressModeW     = vk::SamplerAddressMode::eRepeat,
+                .mipLodBias       = 0.0f,
+                .anisotropyEnable = vk::True,
+                .maxAnisotropy    = properties.limits.maxSamplerAnisotropy,
+                .compareEnable    = vk::False,
+                .compareOp        = vk::CompareOp::eAlways};
+    textureSampler = vk::raii::Sampler(device, samplerInfo);
+}
+
+void Renderer::createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory)
+{
+    vk::ImageCreateInfo imageInfo{.imageType = vk::ImageType::e2D, .format = format, .extent = {width, height, 1}, .mipLevels = 1, .arrayLayers = 1, .samples = vk::SampleCountFlagBits::e1, .tiling = tiling, .usage = usage, .sharingMode = vk::SharingMode::eExclusive};
+
+    image = vk::raii::Image(device, imageInfo);
+
+    vk::MemoryRequirements memRequirements = image.getMemoryRequirements();
+    vk::MemoryAllocateInfo allocInfo{.allocationSize  = memRequirements.size,
+                                        .memoryTypeIndex = findMemoryType(memRequirements.memoryTypeBits, properties)};
+    imageMemory = vk::raii::DeviceMemory(device, allocInfo);
+    image.bindMemory(imageMemory, 0);
+}
+
+void Renderer::transitionImageLayout(const vk::raii::Image &image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout)
+{
+    auto commandBuffer = beginSingleTimeCommands();
+
+    vk::ImageMemoryBarrier barrier{.oldLayout = oldLayout, .newLayout = newLayout, .image = image, .subresourceRange = {vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1}};
+
+    vk::PipelineStageFlags sourceStage;
+    vk::PipelineStageFlags destinationStage;
+
+    if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal)
+    {
+        barrier.srcAccessMask = {};
+        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+
+        sourceStage      = vk::PipelineStageFlagBits::eTopOfPipe;
+        destinationStage = vk::PipelineStageFlagBits::eTransfer;
+    }
+    else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
+    {
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+
+        sourceStage      = vk::PipelineStageFlagBits::eTransfer;
+        destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
+    }
+    else
+    {
+        throw std::invalid_argument("unsupported layout transition!");
+    }
+    commandBuffer->pipelineBarrier(sourceStage, destinationStage, {}, {}, nullptr, barrier);
+    endSingleTimeCommands(*commandBuffer);
+}
+
+void Renderer::copyBufferToImage(const vk::raii::Buffer &buffer, vk::raii::Image &image, uint32_t width, uint32_t height)
+{
+    std::unique_ptr<vk::raii::CommandBuffer> commandBuffer = beginSingleTimeCommands();
+    vk::BufferImageCopy                      region{.bufferOffset = 0, .bufferRowLength = 0, .bufferImageHeight = 0, .imageSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1}, .imageOffset = {0, 0, 0}, .imageExtent = {width, height, 1}};
+    commandBuffer->copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, {region});
+    endSingleTimeCommands(*commandBuffer);
+}
+
+std::unique_ptr<vk::raii::CommandBuffer> Renderer::beginSingleTimeCommands()
+{
+    vk::CommandBufferAllocateInfo            allocInfo{.commandPool = commandPool, .level = vk::CommandBufferLevel::ePrimary, .commandBufferCount = 1};
+    std::unique_ptr<vk::raii::CommandBuffer> commandBuffer = std::make_unique<vk::raii::CommandBuffer>(std::move(vk::raii::CommandBuffers(device, allocInfo).front()));
+
+    vk::CommandBufferBeginInfo beginInfo{.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit};
+    commandBuffer->begin(beginInfo);
+
+    return commandBuffer;
+}
+
+void Renderer::endSingleTimeCommands(vk::raii::CommandBuffer &commandBuffer)
+{
+    commandBuffer.end();
+
+    vk::SubmitInfo submitInfo{.commandBufferCount = 1, .pCommandBuffers = &*commandBuffer};
+    queue.submit(submitInfo, nullptr);
+    queue.waitIdle();
 }
 
 void Renderer::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory)

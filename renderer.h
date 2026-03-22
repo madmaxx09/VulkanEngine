@@ -16,6 +16,7 @@
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+
 #include <chrono>
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
@@ -109,6 +110,11 @@ class Renderer
         vk::raii::Buffer indexBuffer = nullptr;
         vk::raii::DeviceMemory indexBufferMemory = nullptr;
 
+        vk::raii::Image textureImage = nullptr;
+        vk::raii::DeviceMemory textureImageMemory = nullptr;
+        vk::raii::ImageView textureImageView = nullptr;
+        vk::raii::Sampler textureSampler = nullptr;
+
 	    std::vector<vk::raii::CommandBuffer> commandBuffers;
         std::vector<vk::raii::Buffer> uniformBuffers;
         std::vector<vk::raii::DeviceMemory> uniformBuffersMemory;
@@ -138,9 +144,23 @@ class Renderer
         void cleanupSwapChain();
 
         void createImageViews();
+        vk::raii::ImageView createImageView(vk::raii::Image& image, vk::Format format);
+
         void createDescriptorSetLayout();
         void createGraphicsPipeline();
         void createCommandPool();
+        void createTextureImage();
+        void createTextureImageView();
+        void createTextureSampler();
+        void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
+        void transitionImageLayout(const vk::raii::Image &image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+        void copyBufferToImage(const vk::raii::Buffer &buffer, vk::raii::Image &image, uint32_t width, uint32_t height);
+
+        std::unique_ptr<vk::raii::CommandBuffer> beginSingleTimeCommands();
+        void endSingleTimeCommands(vk::raii::CommandBuffer &commandBuffer);
+
+
+
         void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory);
         void copyBuffer(vk::raii::Buffer & srcBuffer, vk::raii::Buffer & dstBuffer, vk::DeviceSize size);
 
