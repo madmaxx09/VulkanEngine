@@ -14,6 +14,7 @@
 #include <limits>
 #include <fstream>
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -23,19 +24,22 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
 struct Vertex
 {
-	glm::vec2 pos;
+	glm::vec3 pos;
 	glm::vec3 color;
+    glm::vec2 texCoord;
 
 	static vk::VertexInputBindingDescription getBindingDescription()
 	{
 		return {0, sizeof(Vertex), vk::VertexInputRate::eVertex};
 	}
 
-	static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
+	static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
 	{
 		return {
-		    vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, pos)),
-		    vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, color))};
+		    vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, pos)),
+		    vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, color)),
+            vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord))
+        };
 	}
 };
 
@@ -47,14 +51,20 @@ struct UniformBufferObject
 };
 
 const std::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
+
+    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
+    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
+    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
+    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
 };
 
 const std::vector<uint16_t> indices = {
-    0, 1, 2, 2, 3, 0
+    0, 1, 2, 2, 3, 0,
+    4, 5, 6, 6, 7, 4
 };
 
 class Renderer
@@ -115,6 +125,10 @@ class Renderer
         vk::raii::ImageView textureImageView = nullptr;
         vk::raii::Sampler textureSampler = nullptr;
 
+        vk::raii::Image depthImage = nullptr;
+        vk::raii::DeviceMemory depthImageMemory = nullptr;
+        vk::raii::ImageView depthImageView = nullptr;
+
 	    std::vector<vk::raii::CommandBuffer> commandBuffers;
         std::vector<vk::raii::Buffer> uniformBuffers;
         std::vector<vk::raii::DeviceMemory> uniformBuffersMemory;
@@ -144,11 +158,15 @@ class Renderer
         void cleanupSwapChain();
 
         void createImageViews();
-        vk::raii::ImageView createImageView(vk::raii::Image& image, vk::Format format);
+        vk::raii::ImageView createImageView(vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags);
 
         void createDescriptorSetLayout();
         void createGraphicsPipeline();
         void createCommandPool();
+        void createDepthResources();
+        bool hasStencilComponent(vk::Format format);
+        vk::Format findDepthFormat();
+        vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
         void createTextureImage();
         void createTextureImageView();
         void createTextureSampler();
@@ -177,13 +195,14 @@ class Renderer
 
         void recordCommandBuffer(uint32_t imageIndex);
         void transition_image_layout(
-            uint32_t                imageIndex,
+            vk::Image               image,
             vk::ImageLayout         old_layout,
             vk::ImageLayout         new_layout,
             vk::AccessFlags2        src_access_mask,
             vk::AccessFlags2        dst_access_mask,
             vk::PipelineStageFlags2 src_stage_mask,
-            vk::PipelineStageFlags2 dst_stage_mask);
+            vk::PipelineStageFlags2 dst_stage_mask,
+            vk::ImageAspectFlags    image_aspect_flags);
         
 
         vk::Extent2D chooseSwapExtent(vk::SurfaceCapabilitiesKHR const &capabilities);

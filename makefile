@@ -32,7 +32,6 @@ all: $(NAME)
 $(NAME): $(OBJS)
 	bash shaders/compile.sh
 	$(CXX) -o $@ $^ $(LIBS)
-	rm *.o
 
 $(OBJ_DIR)/%.o: %.cpp
 	mkdir -p $(OBJ_DIR)
@@ -44,7 +43,8 @@ clean:
 fclean: clean
 	rm -f $(NAME)
 
-re: fclean all
+re: fclean
+	all
 
 debug: CXXFLAGS += -O0 -g3 -DDEBUG
 debug: re
