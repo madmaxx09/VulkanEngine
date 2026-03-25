@@ -9,6 +9,7 @@
 #include <array>
 #include <algorithm>
 #include <map>
+#include <unordered_map>
 #include <iterator>
 #include <cassert>
 #include <limits>
@@ -17,6 +18,11 @@
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
+#define GLM_ENABLE_EXPERIMENTAL
+#include <glm/gtx/hash.hpp>
+
+
+
 
 #include <chrono>
 
@@ -27,6 +33,11 @@ struct Vertex
 	glm::vec3 pos;
 	glm::vec3 color;
     glm::vec2 texCoord;
+
+    bool operator==(const Vertex& other) const
+    {
+        return pos == other.pos && color == other.color && texCoord == other.texCoord;
+    }
 
 	static vk::VertexInputBindingDescription getBindingDescription()
 	{
@@ -43,28 +54,20 @@ struct Vertex
 	}
 };
 
+template <>
+struct std::hash<Vertex>
+{
+	size_t operator()(Vertex const &vertex) const noexcept
+	{
+		return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.color) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
+	}
+};
+
 struct UniformBufferObject
 {
     glm::mat4 model;
     glm::mat4 view;
     glm::mat4 proj;
-};
-
-const std::vector<Vertex> vertices = {
-    {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}},
-
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}},
-    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}},
-    {{0.5f, 0.5f, -0.5f}, {0.0f, 0.0f, 1.0f}, {1.0f, 1.0f}},
-    {{-0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}}
-};
-
-const std::vector<uint16_t> indices = {
-    0, 1, 2, 2, 3, 0,
-    4, 5, 6, 6, 7, 4
 };
 
 class Renderer
@@ -92,6 +95,9 @@ class Renderer
 
     private:
 
+        const std::string MODEL_PATH = "models/viking_room.obj";
+        const std::string TEXTURE_PATH = "textures/viking_room.png";
+
         Window &window;
         
         vk::raii::Context context;
@@ -115,10 +121,6 @@ class Renderer
         vk::raii::PipelineLayout pipelineLayout = nullptr;
         vk::raii::Pipeline       graphicsPipeline = nullptr;
         vk::raii::CommandPool    commandPool      = nullptr;
-        vk::raii::Buffer vertexBuffer = nullptr;
-        vk::raii::DeviceMemory vertexBufferMemory = nullptr;
-        vk::raii::Buffer indexBuffer = nullptr;
-        vk::raii::DeviceMemory indexBufferMemory = nullptr;
 
         vk::raii::Image textureImage = nullptr;
         vk::raii::DeviceMemory textureImageMemory = nullptr;
@@ -141,6 +143,14 @@ class Renderer
         std::vector<vk::raii::Fence> inFlightFences;
         
         uint32_t                         frameIndex = 0;
+
+        std::vector<Vertex> vertices;
+        std::vector<uint32_t> indices;
+        vk::raii::Buffer vertexBuffer = nullptr;
+        vk::raii::DeviceMemory vertexBufferMemory = nullptr;
+        vk::raii::Buffer indexBuffer = nullptr;
+        vk::raii::DeviceMemory indexBufferMemory = nullptr;
+
 
         
 
@@ -181,7 +191,8 @@ class Renderer
 
         void createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Buffer& buffer, vk::raii::DeviceMemory& bufferMemory);
         void copyBuffer(vk::raii::Buffer & srcBuffer, vk::raii::Buffer & dstBuffer, vk::DeviceSize size);
-
+        
+        void loadModel();
         void createVertexBuffer();
         void createIndexBuffer();
         void createUniformBuffers();
