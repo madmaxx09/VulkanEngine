@@ -14,6 +14,7 @@
 #include <cassert>
 #include <limits>
 #include <fstream>
+#include <memory>
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
@@ -131,6 +132,10 @@ class Renderer
         vk::raii::DeviceMemory depthImageMemory = nullptr;
         vk::raii::ImageView depthImageView = nullptr;
 
+        vk::raii::Image colorImage = nullptr;
+        vk::raii::DeviceMemory colorImageMemory = nullptr;
+        vk::raii::ImageView colorImageView = nullptr;
+
 	    std::vector<vk::raii::CommandBuffer> commandBuffers;
         std::vector<vk::raii::Buffer> uniformBuffers;
         std::vector<vk::raii::DeviceMemory> uniformBuffersMemory;
@@ -143,13 +148,16 @@ class Renderer
         std::vector<vk::raii::Fence> inFlightFences;
         
         uint32_t                         frameIndex = 0;
+        vk::SampleCountFlagBits msaaSamples = vk::SampleCountFlagBits::e1;
 
+        //Model related variables
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
         vk::raii::Buffer vertexBuffer = nullptr;
         vk::raii::DeviceMemory vertexBufferMemory = nullptr;
         vk::raii::Buffer indexBuffer = nullptr;
         vk::raii::DeviceMemory indexBufferMemory = nullptr;
+        uint32_t mipLevels;
 
 
         
@@ -168,7 +176,7 @@ class Renderer
         void cleanupSwapChain();
 
         void createImageViews();
-        vk::raii::ImageView createImageView(vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags);
+        vk::raii::ImageView createImageView(vk::raii::Image& image, vk::Format format, vk::ImageAspectFlags aspectFlags, uint32_t mipLevels);
 
         void createDescriptorSetLayout();
         void createGraphicsPipeline();
@@ -180,9 +188,11 @@ class Renderer
         void createTextureImage();
         void createTextureImageView();
         void createTextureSampler();
-        void createImage(uint32_t width, uint32_t height, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
-        void transitionImageLayout(const vk::raii::Image &image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
+        void createImage(uint32_t width, uint32_t height, uint32_t mipLevels, vk::SampleCountFlagBits numSamples, vk::Format format, vk::ImageTiling tiling, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties, vk::raii::Image &image, vk::raii::DeviceMemory &imageMemory);
+        void transitionImageLayout(const vk::raii::Image &image, vk::ImageLayout oldLayout, vk::ImageLayout newLayout, uint32_t mipLevels);
         void copyBufferToImage(const vk::raii::Buffer &buffer, vk::raii::Image &image, uint32_t width, uint32_t height);
+        void generateMipmaps(vk::raii::Image& image, vk::Format imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels);
+        void createColorRessources();
 
         std::unique_ptr<vk::raii::CommandBuffer> beginSingleTimeCommands();
         void endSingleTimeCommands(vk::raii::CommandBuffer &commandBuffer);
@@ -221,5 +231,5 @@ class Renderer
 
 
         std::vector<const char*> getRequiredInstanceExtensions();
-        
+        vk::SampleCountFlagBits getMaxUsableSampleCount();
 };
