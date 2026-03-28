@@ -19,7 +19,7 @@ SRCS = main.cpp \
 OBJS = $(SRCS:.cpp=.o)
 
 CXX = c++
-CXXFLAGS = -std=c++20 -I$(IMGUI_DIR)
+CXXFLAGS = -std=c++20 -isystem external -I$(IMGUI_DIR)
 CXXFLAGS += -g -Wall -Wformat
 CXXFLAGS += `pkg-config --cflags glfw3 vulkan`
 

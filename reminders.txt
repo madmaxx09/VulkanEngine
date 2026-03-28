@@ -28,3 +28,10 @@ https://developer.nvidia.com/vulkan-memory-management
 //////////////////
 
 It should be noted that it is uncommon in practice to generate the mipmap levels at runtime anyway. Usually they are pre-generated and stored in the texture file alongside the base level to improve loading speed. Implementing resizing in software and loading multiple levels from a file is left as an exercise to the reader.
+
+///////////////
+
+Compute shaders (for particle systems for exemple)
+and timeline Semaphores
+
+https://docs.vulkan.org/tutorial/latest/11_Compute_Shader.html
