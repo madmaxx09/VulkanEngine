@@ -2,6 +2,8 @@
 
 #include "window.h"
 #include "renderer.h"
+#include "imgui_layer.h"
+#include <memory>
 
 class Engine
 {
@@ -17,4 +19,5 @@ class Engine
     private:
         Window window;
         Renderer renderer;
+        std::unique_ptr<ImguiSystem> imguiSystem;
 };

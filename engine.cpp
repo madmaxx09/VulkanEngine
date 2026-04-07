@@ -5,6 +5,7 @@ void Engine::Start(const std::string &name, int width, int height)
 {
     window.Init(name, height, width);
     renderer.init();
+    imguiSystem = std::make_unique<ImguiSystem>(&renderer, width, height);
     std::cout << "Engine setup done" << std::endl;
 }
 
@@ -13,7 +14,7 @@ void Engine::Run()
     while(!window.shouldClose())
     {
         glfwPollEvents();
-        renderer.drawFrame();
+        renderer.drawFrame(imguiSystem.get());
     }
     renderer.idle();
     renderer.cleanup();

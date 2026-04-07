@@ -4,6 +4,7 @@
 #include <vulkan/vulkan_raii.hpp>
 #define VULKAN_HPP_HANDLE_ERROR_OUT_OF_DATE_AS_SUCCESS
 #include "window.h"
+#include "imgui_layer.h"
 #include <ranges>
 #include <vector>
 #include <array>
@@ -90,9 +91,18 @@ class Renderer
         void init();
         void cleanup();
         void idle() { device.waitIdle(); }
-        void drawFrame();
+        void drawFrame(ImguiSystem *imguiSystem);
 
         bool framebufferResized = false;
+
+        vk::Format findDepthFormat();
+        vk::raii::ShaderModule createShaderModule(const std::string& filename);
+        const vk::raii::Device& getDevice() const { return device; }
+        const Window& getWindow() const { return window; }
+        vk::Format getSwapChainImageFormat() { return swapChainSurfaceFormat.format; }
+
+        uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
+
 
     private:
 
@@ -100,6 +110,8 @@ class Renderer
         const std::string TEXTURE_PATH = "textures/viking_room.png";
 
         Window &window;
+
+
         
         vk::raii::Context context;
         vk::raii::Instance instance = nullptr;
@@ -183,7 +195,7 @@ class Renderer
         void createCommandPool();
         void createDepthResources();
         bool hasStencilComponent(vk::Format format);
-        vk::Format findDepthFormat();
+        
         vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
         void createTextureImage();
         void createTextureImageView();
@@ -196,6 +208,7 @@ class Renderer
 
         std::unique_ptr<vk::raii::CommandBuffer> beginSingleTimeCommands();
         void endSingleTimeCommands(vk::raii::CommandBuffer &commandBuffer);
+
 
 
 
@@ -212,9 +225,8 @@ class Renderer
 	    void createCommandBuffers();
         void createSyncObjects();
 
-        uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
-        void recordCommandBuffer(uint32_t imageIndex);
+        void recordCommandBuffer(uint32_t imageIndex, ImguiSystem *imguiSystem);
         void transition_image_layout(
             vk::Image               image,
             vk::ImageLayout         old_layout,
@@ -227,7 +239,7 @@ class Renderer
         
 
         vk::Extent2D chooseSwapExtent(vk::SurfaceCapabilitiesKHR const &capabilities);
-        [[nodiscard]] vk::raii::ShaderModule createShaderModule(const std::vector<char> &code) const;
+        // [[nodiscard]] vk::raii::ShaderModule createShaderModule(const std::vector<char> &code) const;
 
 
         std::vector<const char*> getRequiredInstanceExtensions();

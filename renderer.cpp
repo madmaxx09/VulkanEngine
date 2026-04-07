@@ -23,6 +23,7 @@ void Renderer::init()
 }
 
 
+
 void Renderer::initVulkan()
 {
     createInstance();
@@ -346,9 +347,20 @@ void Renderer::createDescriptorSetLayout()
 
 }
 
+vk::raii::ShaderModule Renderer::createShaderModule(const std::string& filename)
+{
+    auto code = readFile(filename);
+
+    vk::ShaderModuleCreateInfo createInfo{
+        .codeSize = code.size(),
+        .pCode = reinterpret_cast<const uint32_t *>(code.data())
+    };
+    return vk::raii::ShaderModule(device, createInfo);
+}
+
 void Renderer::createGraphicsPipeline()
 {
-    vk::raii::ShaderModule shaderModule = createShaderModule(readFile("shaders/slang.spv"));
+    vk::raii::ShaderModule shaderModule = createShaderModule("shaders/slang.spv");
 
     vk::PipelineShaderStageCreateInfo vertShaderStageInfo{.stage = vk::ShaderStageFlagBits::eVertex, .module = shaderModule, .pName = "vertMain"};
     vk::PipelineShaderStageCreateInfo fragShaderStageInfo{.stage = vk::ShaderStageFlagBits::eFragment, .module = shaderModule, .pName = "fragMain"};
@@ -408,13 +420,13 @@ void Renderer::createGraphicsPipeline()
     graphicsPipeline = vk::raii::Pipeline(device, nullptr, pipelineCreateInfoChain.get<vk::GraphicsPipelineCreateInfo>());
 }
 
-[[nodiscard]] vk::raii::ShaderModule Renderer::createShaderModule(const std::vector<char> &code) const
-{
-    vk::ShaderModuleCreateInfo createInfo{.codeSize = code.size() * sizeof(char), .pCode = reinterpret_cast<const uint32_t *>(code.data())};
-    vk::raii::ShaderModule     shaderModule{device, createInfo};
+// [[nodiscard]] vk::raii::ShaderModule Renderer::createShaderModule(const std::vector<char> &code) const
+// {
+//     vk::ShaderModuleCreateInfo createInfo{.codeSize = code.size() * sizeof(char), .pCode = reinterpret_cast<const uint32_t *>(code.data())};
+//     vk::raii::ShaderModule     shaderModule{device, createInfo};
 
-    return shaderModule;
-}
+//     return shaderModule;
+// }
 
 void Renderer::createCommandPool()
 {
@@ -863,7 +875,7 @@ uint32_t Renderer::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags p
     throw std::runtime_error("failed to find suitable memory type!");
 }
 
-void Renderer::recordCommandBuffer(uint32_t imageIndex)
+void Renderer::recordCommandBuffer(uint32_t imageIndex, ImguiSystem *imguiSystem)
 {
     auto &commandBuffer = commandBuffers[frameIndex];
     commandBuffer.begin({});
@@ -936,6 +948,27 @@ void Renderer::recordCommandBuffer(uint32_t imageIndex)
     commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, *descriptorSets[frameIndex], nullptr);
     commandBuffer.drawIndexed(indices.size(), 1, 0, 0, 0);
     commandBuffer.endRendering();
+    
+    vk::RenderingAttachmentInfo imguiColorAttachment{
+      .imageView = *swapChainImageViews[imageIndex],
+      .imageLayout = vk::ImageLayout::eColorAttachmentOptimal,
+      .loadOp = vk::AttachmentLoadOp::eLoad, // Load existing content
+      .storeOp = vk::AttachmentStoreOp::eStore
+    };
+
+    vk::RenderingInfo imguiRenderingInfo{
+      .renderArea = vk::Rect2D({0, 0}, swapChainExtent),
+      .layerCount = 1,
+      .colorAttachmentCount = 1,
+      .pColorAttachments = &imguiColorAttachment,
+      .pDepthAttachment = nullptr
+    };
+
+    commandBuffer.beginRendering(imguiRenderingInfo);
+    imguiSystem->Render(commandBuffer, frameIndex);
+
+    commandBuffer.endRendering();
+
     // After rendering, transition the swapchain image to PRESENT_SRC
     transition_image_layout(
         swapChainImages[imageIndex],
@@ -982,7 +1015,7 @@ void Renderer::transition_image_layout(
     commandBuffers[frameIndex].pipelineBarrier2(dependency_info);
 }
 
-void Renderer::drawFrame()
+void Renderer::drawFrame(ImguiSystem *imguiSystem)
 {
     // Note: inFlightFences, presentCompleteSemaphores, and commandBuffers are indexed by frameIndex,
     //       while renderFinishedSemaphores is indexed by imageIndex
@@ -1015,7 +1048,7 @@ void Renderer::drawFrame()
     device.resetFences(*inFlightFences[frameIndex]);
 
     commandBuffers[frameIndex].reset();
-    recordCommandBuffer(imageIndex);
+    recordCommandBuffer(imageIndex, imguiSystem);
 
     vk::PipelineStageFlags waitDestinationStageMask(vk::PipelineStageFlagBits::eColorAttachmentOutput);
     const vk::SubmitInfo   submitInfo{.waitSemaphoreCount   = 1,
