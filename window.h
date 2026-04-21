@@ -6,6 +6,7 @@
 #include <string>
 #include <stdexcept>
 #include <iostream>
+#include <functional>
 
 class Window
 {
@@ -16,11 +17,15 @@ class Window
         void Init(const std::string &name, int height, int width);
         GLFWwindow* getGLFWwindow() { return window; }
         bool shouldClose() { return glfwWindowShouldClose(window); }
-
+        
+        void setMouseCallback(std::function<void(float, float, uint32_t)> callback);
+        
         bool framebufferResized;
     private:
         GLFWwindow* window;
         int width;
         int height;
+
+        std::function<void(float, float, uint32_t)> mouseCallback;
         
 };

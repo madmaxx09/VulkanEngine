@@ -9,7 +9,6 @@ bool ImguiSystem::init(Renderer* renderer, int width, int height)
 {
 
     _renderer = renderer;
-    //_window = renderer->getWindow();
 
     // Initialize ImGui context
     _context = ImGui::CreateContext();
@@ -52,6 +51,34 @@ bool ImguiSystem::init(Renderer* renderer, int width, int height)
     }
 
     return true;
+}
+
+void ImguiSystem::HandleMouse(float x, float y, uint32_t buttons)
+{
+    ImGuiIO& io = ImGui::GetIO();
+
+    io.MousePos = ImVec2(x, y); 
+
+    io.MouseDown[0] = (buttons & 0x01) != 0; // Left button
+    io.MouseDown[1] = (buttons & 0x02) != 0; // Right button
+    io.MouseDown[2] = (buttons & 0x04) != 0; // Middle button
+}
+
+bool ImguiSystem::ImguiWantsMouse()
+{
+    return ImGui::GetIO().WantCaptureMouse;
+}
+
+void ImguiSystem::NewFrame()
+{
+    ImGui::NewFrame();
+    ImGui::Begin("Vulkan ImGui Demo");
+    ImGui::Text("Hello, Vulkan!");
+    if (ImGui::Button("Click me!")) {
+        // Handle button click
+    }
+    ImGui::End();
+    ImGui::EndFrame();
 }
 
 void ImguiSystem::Render(vk::raii::CommandBuffer& commandBuffer, uint32_t frameIndex)
@@ -220,9 +247,148 @@ void ImguiSystem::updateBuffers(uint32_t frameIndex)
 
 bool ImguiSystem::createRessources()
 {
+    if (!createFontTexture()) {
+        return false;
+    }
+
+    if (!createDescriptorSetLayout()) {
+        return false;
+    }
+
+    if (!createDescriptorPool()) {
+        return false;
+    }
+
+    if (!createDescriptorSet()) {
+        return false;
+    }
+
+    if (!createPipelineLayout()) {
+        return false;
+    }
+
+    if (!createPipeline()) {
+        return false;
+    }
+
+    return true;
+}
+
+bool ImguiSystem::createFontTexture()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    unsigned char* fontData;
+    int texWidth, texHeight;
+    io.Fonts->GetTexDataAsRGBA32(&fontData, &texWidth, &texHeight);
+    vk::DeviceSize uploadSize = texWidth * texHeight * 4 * sizeof(char);
+
+    try {
+        vk::ImageCreateInfo imageInfo;
+        imageInfo.imageType = vk::ImageType::e2D;
+        imageInfo.format = vk::Format::eR8G8B8A8Unorm;
+        imageInfo.extent.width = static_cast<uint32_t>(texWidth);
+        imageInfo.extent.height = static_cast<uint32_t>(texHeight);
+        imageInfo.extent.depth = 1;
+        imageInfo.mipLevels = 1;
+        imageInfo.arrayLayers = 1;
+        imageInfo.samples = vk::SampleCountFlagBits::e1;
+        imageInfo.tiling = vk::ImageTiling::eOptimal;
+        imageInfo.usage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst;
+        imageInfo.sharingMode = vk::SharingMode::eExclusive;
+        imageInfo.initialLayout = vk::ImageLayout::eUndefined;
+
+        const vk::raii::Device& device = _renderer->getDevice();
+        fontImage = vk::raii::Image(device, imageInfo);
+
+        // Allocate memory for the image
+        vk::MemoryRequirements memRequirements = fontImage.getMemoryRequirements();
+
+        vk::MemoryAllocateInfo allocInfo;
+        allocInfo.allocationSize = memRequirements.size;
+        allocInfo.memoryTypeIndex = _renderer->findMemoryType(memRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal);
+        fontMemory = vk::raii::DeviceMemory(device, allocInfo);
+        fontImage.bindMemory(*fontMemory, 0);
+
+        // Create a staging buffer for uploading the font data
+        vk::BufferCreateInfo bufferInfo;
+        bufferInfo.size = uploadSize;
+        bufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
+        bufferInfo.sharingMode = vk::SharingMode::eExclusive;
+
+        vk::raii::Buffer stagingBuffer(device, bufferInfo);
+
+        vk::MemoryRequirements stagingMemRequirements = stagingBuffer.getMemoryRequirements();
+
+        vk::MemoryAllocateInfo stagingAllocInfo;
+        stagingAllocInfo.allocationSize = stagingMemRequirements.size;
+        stagingAllocInfo.memoryTypeIndex = _renderer->findMemoryType(stagingMemRequirements.memoryTypeBits,
+                                                                    vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+        vk::raii::DeviceMemory stagingBufferMemory(device, stagingAllocInfo);
+        stagingBuffer.bindMemory(*stagingBufferMemory, 0);
+
+        // Copy font data to staging buffer
+        void* data = stagingBufferMemory.mapMemory(0, uploadSize);
+        memcpy(data, fontData, uploadSize);
+        stagingBufferMemory.unmapMemory();
+        // Transition image layout and copy data
+        _renderer->transitionImageLayout(fontImage,
+                                        vk::ImageLayout::eUndefined,
+                                        vk::ImageLayout::eTransferDstOptimal);
+        _renderer->copyBufferToImage(stagingBuffer,
+                                    fontImage,
+                                    static_cast<uint32_t>(texWidth),
+                                    static_cast<uint32_t>(texHeight));
+        _renderer->transitionImageLayout(fontImage,
+                                        vk::ImageLayout::eTransferDstOptimal,
+                                        vk::ImageLayout::eShaderReadOnlyOptimal);
+
+        // Staging buffer and memory will be automatically cleaned up by RAII
+
+        // Create image view
+        vk::ImageViewCreateInfo viewInfo;
+        viewInfo.image = *fontImage;
+        viewInfo.viewType = vk::ImageViewType::e2D;
+        viewInfo.format = vk::Format::eR8G8B8A8Unorm;
+        viewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+        viewInfo.subresourceRange.baseMipLevel = 0;
+        viewInfo.subresourceRange.levelCount = 1;
+        viewInfo.subresourceRange.baseArrayLayer = 0;
+        viewInfo.subresourceRange.layerCount = 1;
+
+        fontView = vk::raii::ImageView(device, viewInfo);
+
+        // Create sampler
+        vk::SamplerCreateInfo samplerInfo;
+        samplerInfo.magFilter = vk::Filter::eLinear;
+        samplerInfo.minFilter = vk::Filter::eLinear;
+        samplerInfo.mipmapMode = vk::SamplerMipmapMode::eLinear;
+        samplerInfo.addressModeU = vk::SamplerAddressMode::eClampToEdge;
+        samplerInfo.addressModeV = vk::SamplerAddressMode::eClampToEdge;
+        samplerInfo.addressModeW = vk::SamplerAddressMode::eClampToEdge;
+        samplerInfo.mipLodBias = 0.0f;
+        samplerInfo.anisotropyEnable = VK_FALSE;
+        samplerInfo.maxAnisotropy = 1.0f;
+        samplerInfo.compareEnable = VK_FALSE;
+        samplerInfo.compareOp = vk::CompareOp::eAlways;
+        samplerInfo.minLod = 0.0f;
+        samplerInfo.maxLod = 0.0f;
+        samplerInfo.borderColor = vk::BorderColor::eFloatOpaqueWhite;
+        samplerInfo.unnormalizedCoordinates = VK_FALSE;
+
+        fontSampler = vk::raii::Sampler(device, samplerInfo);
+
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to create font texture: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool ImguiSystem::createDescriptorSetLayout()
+{
     try
     {
-        ///desc set layout
         vk::DescriptorSetLayoutBinding binding;
         binding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
         binding.descriptorCount = 1;
@@ -235,8 +401,16 @@ bool ImguiSystem::createRessources()
 
         const vk::raii::Device& device = _renderer->getDevice();
         descriptorSetLayout = vk::raii::DescriptorSetLayout(device, layoutInfo);
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to create desc set layout" << e.what() << std::endl;
+        return false;
+    }
+}
 
-        ///desc pool
+bool ImguiSystem::createDescriptorPool()
+{
+    try {
         vk::DescriptorPoolSize poolSize;
         poolSize.type = vk::DescriptorType::eCombinedImageSampler;
         poolSize.descriptorCount = 1;
@@ -247,16 +421,25 @@ bool ImguiSystem::createRessources()
         poolInfo.poolSizeCount = 1;
         poolInfo.pPoolSizes = &poolSize;
 
-        //const vk::raii::Device& device = _renderer->getDevice();
+        const vk::raii::Device& device = _renderer->getDevice();
         descriptorPool = vk::raii::DescriptorPool(device, poolInfo);
 
-        ///desc set creation
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to create descriptor pool: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool ImguiSystem::createDescriptorSet()
+{
+    try {
         vk::DescriptorSetAllocateInfo allocInfo;
         allocInfo.descriptorPool = *descriptorPool;
         allocInfo.descriptorSetCount = 1;
         allocInfo.pSetLayouts = &(*descriptorSetLayout);
 
-        //const vk::raii::Device& device = _renderer->getDevice();
+        const vk::raii::Device& device = _renderer->getDevice();
         vk::raii::DescriptorSets descriptorSets(device, allocInfo);
         descriptorSet = std::move(descriptorSets[0]); // Store the first (and only) descriptor set
         std::cout << "ImGui created descriptor set with handle: " << *descriptorSet << std::endl;
@@ -276,7 +459,16 @@ bool ImguiSystem::createRessources()
 
         device.updateDescriptorSets({writeSet}, {});
 
-        ///pipeline layout
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to create descriptor set: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool ImguiSystem::createPipelineLayout()
+{
+    try {
         // Push constant range for the transformation matrix
         vk::PushConstantRange pushConstantRange;
         pushConstantRange.stageFlags = vk::ShaderStageFlagBits::eVertex;
@@ -290,11 +482,20 @@ bool ImguiSystem::createRessources()
         pipelineLayoutInfo.pushConstantRangeCount = 1;
         pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
-        //const vk::raii::Device& device = _renderer->getDevice();
+        const vk::raii::Device& device = _renderer->getDevice();
         pipelineLayout = vk::raii::PipelineLayout(device, pipelineLayoutInfo);
 
-        ///create pipeline
-                // Load shaders
+        return true;
+    } catch (const std::exception& e) {
+        std::cerr << "Failed to create pipeline layout: " << e.what() << std::endl;
+        return false;
+    }
+}
+
+bool ImguiSystem::createPipeline()
+{
+    try {
+        // Load shaders
         vk::raii::ShaderModule shaderModule = _renderer->createShaderModule("shaders/imgui.spv");
 
         // Shader stage creation
@@ -393,8 +594,8 @@ bool ImguiSystem::createRessources()
 
         // Dynamic state
         std::vector<vk::DynamicState> dynamicStates = {
-        vk::DynamicState::eViewport,
-        vk::DynamicState::eScissor
+            vk::DynamicState::eViewport,
+            vk::DynamicState::eScissor
         };
 
         vk::PipelineDynamicStateCreateInfo dynamicState;
@@ -424,12 +625,11 @@ bool ImguiSystem::createRessources()
         pipelineInfo.pNext = &renderingInfo;
         pipelineInfo.basePipelineHandle = nullptr;
 
-        //const vk::raii::Device& device = _renderer->getDevice();
+        const vk::raii::Device& device = _renderer->getDevice();
         pipeline = vk::raii::Pipeline(device, nullptr, pipelineInfo);
-
         return true;
     } catch (const std::exception& e) {
-        std::cerr << "Failed to init vulkan ressources for ImGui" << e.what() << std::endl;
+        std::cerr << "Failed to create graphics pipeline: " << e.what() << std::endl;
         return false;
     }
 }

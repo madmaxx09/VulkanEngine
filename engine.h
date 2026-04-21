@@ -16,6 +16,8 @@ class Engine
 
         Window getWindow() { return window; };
 
+        void handleMouseInput(float x, float y, uint32_t buttons);
+
     private:
         Window window;
         Renderer renderer;

@@ -23,5 +23,15 @@ void Window::Init(const std::string &name, int height, int width)
         throw std::runtime_error("GLFW createwindow fail");
     }
     glfwSetWindowUserPointer(window, this);
+
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+    glfwSetCursorPosCallback(window, mousePosCallback);
+    glfwSetMouseButtonCallback(window, mouseButtonCallback);
+    // glfwSetKeyCallback(window, KeyCallback);
+    // glfwSetCharCallback(window, CharCallback);
+}
+
+void Window::setMouseCallback(std::function<void(float, float, uint32_t)> callback)
+{
+    mouseCallback = std::move(callback);
 }
