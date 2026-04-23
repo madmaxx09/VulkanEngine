@@ -31,7 +31,7 @@ class ImguiSystem
 
         //input handling
         void HandleMouse(float x, float y, uint32_t buttons);
-        bool ImguiWantsMouse()
+        bool ImguiWantsMouse() const;
 
         struct PushConstBlock {
             glm::vec2 scale;

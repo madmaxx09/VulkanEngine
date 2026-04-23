@@ -19,6 +19,8 @@ class Window
         bool shouldClose() { return glfwWindowShouldClose(window); }
         
         void setMouseCallback(std::function<void(float, float, uint32_t)> callback);
+        static void mousePosCallback(GLFWwindow* window, double xpos, double ypos);
+        static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
         
         bool framebufferResized;
     private:

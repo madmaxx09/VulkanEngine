@@ -965,7 +965,6 @@ void Renderer::recordCommandBuffer(uint32_t imageIndex, ImguiSystem *imguiSystem
     };
 
     commandBuffer.beginRendering(imguiRenderingInfo);
-    imguiSystem->NewFrame();
     imguiSystem->Render(commandBuffer, frameIndex);
 
     commandBuffer.endRendering();

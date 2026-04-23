@@ -22,4 +22,9 @@ class Engine
         Window window;
         Renderer renderer;
         std::unique_ptr<ImguiSystem> imguiSystem;
+
+        float mouseX = 0.0f;
+        float mouseY = 0.0f;
+
+        void handleMouseHover(float x, float y);
 };

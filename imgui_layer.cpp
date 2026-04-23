@@ -64,7 +64,7 @@ void ImguiSystem::HandleMouse(float x, float y, uint32_t buttons)
     io.MouseDown[2] = (buttons & 0x04) != 0; // Middle button
 }
 
-bool ImguiSystem::ImguiWantsMouse()
+bool ImguiSystem::ImguiWantsMouse() const
 {
     return ImGui::GetIO().WantCaptureMouse;
 }
@@ -75,10 +75,9 @@ void ImguiSystem::NewFrame()
     ImGui::Begin("Vulkan ImGui Demo");
     ImGui::Text("Hello, Vulkan!");
     if (ImGui::Button("Click me!")) {
-        // Handle button click
+        std::cout << "clicked" << std::endl;
     }
     ImGui::End();
-    ImGui::EndFrame();
 }
 
 void ImguiSystem::Render(vk::raii::CommandBuffer& commandBuffer, uint32_t frameIndex)

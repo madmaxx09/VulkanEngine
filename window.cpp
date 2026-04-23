@@ -35,3 +35,42 @@ void Window::setMouseCallback(std::function<void(float, float, uint32_t)> callba
 {
     mouseCallback = std::move(callback);
 }
+
+void Window::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    auto* platform = static_cast<Window *>(glfwGetWindowUserPointer(window));
+    if (platform->mouseCallback) {
+        double xpos, ypos;
+        glfwGetCursorPos(window, &xpos, &ypos);
+        uint32_t buttons = 0;
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+            buttons |= 0x01;
+        }
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+            buttons |= 0x02;
+        }
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS) {
+            buttons |= 0x04;
+        }
+        platform->mouseCallback(static_cast<float>(xpos), static_cast<float>(ypos), buttons);
+    }
+}
+
+void Window::mousePosCallback(GLFWwindow* window, double xpos, double ypos)
+{
+    auto* platform = static_cast<Window *>(glfwGetWindowUserPointer(window));
+    if (platform->mouseCallback)
+    {
+        uint32_t buttons = 0;
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) == GLFW_PRESS) {
+            buttons |= 0x01;
+        }
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT) == GLFW_PRESS) {
+            buttons |= 0x02;
+        }
+        if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_MIDDLE) == GLFW_PRESS) {
+            buttons |= 0x04;
+        }
+        platform->mouseCallback(static_cast<float>(xpos), static_cast<float>(ypos), buttons);
+    }
+}
