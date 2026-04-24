@@ -153,6 +153,7 @@ class Renderer
 
 	    std::vector<vk::raii::CommandBuffer> commandBuffers;
         std::vector<vk::raii::Buffer> uniformBuffers;
+        
         std::vector<vk::raii::DeviceMemory> uniformBuffersMemory;
         std::vector<void*> uniformBuffersMapped;
         vk::raii::DescriptorPool descriptorPool = nullptr;

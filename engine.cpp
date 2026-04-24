@@ -27,7 +27,7 @@ void Engine::Run()
 void Engine::handleMouseInput(float x, float y, uint32_t buttons)
 {
     bool imguiHandlesMouse = imguiSystem && imguiSystem->ImguiWantsMouse();
-    if (!imguiHandlesMouse) 
+    if (!imguiHandlesMouse)
     {
         if (buttons & 1) //left click
             std::cout << "out of imgui left click" << std::endl;

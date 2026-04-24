@@ -10,6 +10,7 @@ SRCS = main.cpp \
 	window.cpp \
 	renderer.cpp \
 	imgui_layer.cpp \
+	camera.cpp \
 	$(IMGUI_DIR)/imgui.cpp \
 	$(IMGUI_DIR)/imgui_draw.cpp \
 	$(IMGUI_DIR)/imgui_tables.cpp \
