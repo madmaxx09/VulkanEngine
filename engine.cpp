@@ -7,6 +7,9 @@ void Engine::Start(const std::string &name, int width, int height)
     window.setMouseCallback([this](float x, float y, uint32_t buttons) {
         handleMouseInput(x, y, buttons);
     });
+    window.setKeyboardCallback([this](uint32_t key, bool pressed) {
+        handleKeyboardInput(key, pressed);
+    });
     renderer.init();
     imguiSystem = std::make_unique<ImguiSystem>(&renderer, width, height);
     std::cout << "Engine setup done" << std::endl;
@@ -44,4 +47,11 @@ void Engine::handleMouseHover(float x, float y)
 {
     mouseX = x;
     mouseY = y;
+}
+
+void Engine::handleKeyboardInput(uint32_t key, bool pressed)
+{
+    switch (key) {
+        case 
+    }
 }

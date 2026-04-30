@@ -21,6 +21,9 @@ class Window
         void setMouseCallback(std::function<void(float, float, uint32_t)> callback);
         static void mousePosCallback(GLFWwindow* window, double xpos, double ypos);
         static void mouseButtonCallback(GLFWwindow* window, int button, int action, int mods);
+
+        void setKeyboardCallback(std::function < void(uint32_t, bool) > callback);
+        static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods);
         
         bool framebufferResized;
     private:
@@ -29,5 +32,5 @@ class Window
         int height;
 
         std::function<void(float, float, uint32_t)> mouseCallback;
-        
+        std::function<void(uint32_t, bool)> keyboardCallback;
 };

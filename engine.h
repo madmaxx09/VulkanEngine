@@ -4,10 +4,13 @@
 #include "renderer.h"
 #include "imgui_layer.h"
 #include <memory>
+#include <chrono>
 
 class Engine
 {
     public:
+        using DeltaTime = std::chrono::milliseconds;
+
         Engine() : window(), renderer(window) {}
         ~Engine() = default;
 
@@ -17,6 +20,7 @@ class Engine
         Window getWindow() { return window; };
 
         void handleMouseInput(float x, float y, uint32_t buttons);
+        void handleKeyboardInput(uint32_t key, bool pressed);
 
     private:
         Window window;

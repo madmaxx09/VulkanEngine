@@ -36,6 +36,11 @@ void Window::setMouseCallback(std::function<void(float, float, uint32_t)> callba
     mouseCallback = std::move(callback);
 }
 
+void Window::setKeyboardCallback(std::function < void(uint32_t, bool) > callback)
+{
+    keyboardCallback = std::move(callback);
+}
+
 void Window::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
 {
     auto* platform = static_cast<Window *>(glfwGetWindowUserPointer(window));
@@ -72,5 +77,15 @@ void Window::mousePosCallback(GLFWwindow* window, double xpos, double ypos)
             buttons |= 0x04;
         }
         platform->mouseCallback(static_cast<float>(xpos), static_cast<float>(ypos), buttons);
+    }
+}
+
+void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    auto* platform = static_cast<Window *>(glfwGetWindowUserPointer(window));
+    if (platform->keyboardCallback)
+    {
+        std::cout << "key pressed" << std::endl;
+        platform->keyboardCallback(key, action != GLFW_RELEASE);
     }
 }

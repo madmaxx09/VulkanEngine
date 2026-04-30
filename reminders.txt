@@ -35,3 +35,23 @@ Compute shaders (for particle systems for exemple)
 and timeline Semaphores
 
 https://docs.vulkan.org/tutorial/latest/11_Compute_Shader.html
+
+/////////////////
+
+Row-Major vs. Column-Major Representation
+
+When working with matrices in graphics programming, it’s important to understand the difference between row-major and column-major representations:
+
+    Row-Major: Matrix elements are stored row by row in memory
+
+        Used by DirectX, C/C++ multi-dimensional arrays
+
+        A matrix is accessed as M[row][column]
+
+    Column-Major: Matrix elements are stored column by column in memory
+
+        Used by OpenGL, GLSL, and by default in GLM
+
+        A matrix is accessed as M[column][row] (in memory layout terms)
+
+//////////////////
