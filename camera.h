@@ -1,6 +1,8 @@
 #pragma once
 
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/quaternion.hpp>
 
 enum class CameraMovement {
     FORWARD,
@@ -15,49 +17,39 @@ class CameraSystem
 {
     public:
         CameraSystem() = default;
-        CameraSystem(
-            glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f),  // Start at world origin
-            glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f),        // Y-axis as world up
-            float yaw = -90.0f,                                 // Look along negative Z-axis (OpenGL convention)
-            float pitch = 0.0f                                  // Level horizon
-        );
+        //CameraSystem();
         ~CameraSystem() = default;
 
         // Matrix generation for graphics pipeline integration
         // These methods bridge between the camera's spatial representation and GPU requirements
-        glm::mat4 getViewMatrix() const;
-        glm::mat4 getProjectionMatrix(float aspectRatio, float nearPlane = 0.1f, float farPlane = 100.0f) const;
+        const glm::mat4 &getViewMatrix();
+        const glm::mat4 &getProjectionMatrix();
 
-        // Input processing methods for different interaction modalities
-        // Each method handles a specific type of user input with appropriate transformations
-        void processKeyboard(CameraMovement direction, float deltaTime);     // Keyboard-based translation
-        void processMouseMovement(float xOffset, float yOffset, bool constrainPitch = true);  // Mouse-based rotation
-        void processMouseScroll(float yOffset);                              // Scroll-based zoom control
+        void updateViewMatrix();
+        void updateProjectionMatrix();
 
-        // Property access methods for external systems
-        // Provide controlled access to internal state without exposing implementation details
+
         glm::vec3 getPosition() const { return position; }
-        glm::vec3 getFront() const { return front; }
-        float getZoom() const { return zoom; }
+        void setPosition(glm::vec3 newPosition);
     private:
-        // These form the camera's local coordinate system in world space
-        glm::vec3 position;     // Camera's location in world coordinates
-        glm::vec3 front;        // Forward direction (where camera is looking)
-        glm::vec3 up;           // Camera's local up direction (for roll control)
-        glm::vec3 right;        // Camera's local right direction (perpendicular to front and up)
-        glm::vec3 worldUp;      // Global up vector reference (typically Y-axis)
+        glm::vec3 position = {0.0f, 0.0f, 4.0f};
+        glm::vec3 rotation = {0.0f, 0.0f, 0.0f};
+        glm::vec3 up     = {0.0f, 1.0f, 0.0f};
 
-        // Rotation representation using Euler angles
-        // Provides intuitive control while managing gimbal lock and other rotation complexities
-        float yaw;              // Horizontal rotation around the world up-axis (left-right looking)
-        float pitch;            // Vertical rotation around the camera's right axis (up-down looking)
+       	// Matrices
+        glm::mat4 viewMatrix       = glm::mat4(1.0f);
+        glm::mat4 projectionMatrix = glm::mat4(1.0f);
 
-        // User interaction and behavior parameters
-        // These control how the camera responds to input and environmental factors
-        float movementSpeed;    // Units per second for translation movement
-        float mouseSensitivity; // Multiplier for mouse input to rotation angle conversion
-        float zoom;             // Field of view control for perspective projection
+        float fov = 45.0f;
+        float aspectRatio = 16.0f / 9.0f;
 
+        float orthoWidth  = 10.0f;
+	    float orthoHeight = 10.0f;
 
-        void updateCameraVectors();
+        float nearPlane = 0.1f;
+        float farPlane = 100.0f;
+
+        bool viewMatrixDirty       = true;
+	    bool projectionMatrixDirty = true;
+        
 };

@@ -3,6 +3,7 @@
 #include "window.h"
 #include "renderer.h"
 #include "imgui_layer.h"
+#include "camera.h"
 #include <memory>
 #include <chrono>
 
@@ -17,6 +18,8 @@ class Engine
         void Start(const std::string &name, int width, int height);
         void Run();
 
+        void updateCameraPosition(DeltaTime deltaTime);
+
         Window getWindow() { return window; };
 
         void handleMouseInput(float x, float y, uint32_t buttons);
@@ -26,9 +29,31 @@ class Engine
         Window window;
         Renderer renderer;
         std::unique_ptr<ImguiSystem> imguiSystem;
+        std::unique_ptr<CameraSystem> cameraSystem;
 
         float mouseX = 0.0f;
         float mouseY = 0.0f;
+
+        std::chrono::milliseconds deltaTimeMS{0};
+        uint64_t                  lastFrameTimeMs = 0;
+
+        std::chrono::milliseconds CalculateDeltaTimeMs();
+
+        struct CameraState
+        {
+           	bool      moveForward             = false;
+            bool      moveBackward            = false;
+            bool      moveLeft                = false;
+            bool      moveRight               = false;
+            bool      moveUp                  = false;
+            bool      moveDown                = false;
+            bool      mouseLeftPressed        = false;
+            bool      mouseRightPressed       = false;
+            float     yaw                     = 0.0f;
+            float     pitch                   = 0.0f;
+            float     cameraSpeed             = 5.0f;
+            glm::quat baseOrientation{1.0f, 0.0f, 0.0f, 0.0f};
+        } cameraControl;
 
         void handleMouseHover(float x, float y);
 };

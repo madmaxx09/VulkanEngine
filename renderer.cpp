@@ -814,7 +814,7 @@ void Renderer::createDescriptorSets()
     }
 }
 
-void Renderer::updateUniformBuffer(uint32_t currentImage)
+void Renderer::updateUniformBuffer(uint32_t currentImage, CameraSystem* camera)
 {
     static auto startTime = std::chrono::high_resolution_clock::now();
     auto currentTime = std::chrono::high_resolution_clock::now();
@@ -822,8 +822,9 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
 
     UniformBufferObject ubo{};
     ubo.model = rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view  = lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj  = glm::perspective(glm::radians(45.0f), static_cast<float>(swapChainExtent.width) / static_cast<float>(swapChainExtent.height), 0.1f, 10.0f);
+    //ubo.model = 
+    ubo.view  = camera->getViewMatrix();
+    ubo.proj  = camera->getProjectionMatrix();
     ubo.proj[1][1] *= -1;
 
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
@@ -1015,7 +1016,7 @@ void Renderer::transition_image_layout(
     commandBuffers[frameIndex].pipelineBarrier2(dependency_info);
 }
 
-void Renderer::drawFrame(ImguiSystem *imguiSystem)
+void Renderer::drawFrame(ImguiSystem *imguiSystem, CameraSystem* camera)
 {
     // Note: inFlightFences, presentCompleteSemaphores, and commandBuffers are indexed by frameIndex,
     //       while renderFinishedSemaphores is indexed by imageIndex
@@ -1042,7 +1043,7 @@ void Renderer::drawFrame(ImguiSystem *imguiSystem)
         throw std::runtime_error("failed to acquire swap chain image!");
     }
 
-    updateUniformBuffer(frameIndex);
+    updateUniformBuffer(frameIndex, camera);
 
     // Only reset the fence if we are submitting work
     device.resetFences(*inFlightFences[frameIndex]);

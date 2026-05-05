@@ -27,7 +27,7 @@ void Window::Init(const std::string &name, int height, int width)
     glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
     glfwSetCursorPosCallback(window, mousePosCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
-    // glfwSetKeyCallback(window, KeyCallback);
+    glfwSetKeyCallback(window, keyCallback);
     // glfwSetCharCallback(window, CharCallback);
 }
 
@@ -85,7 +85,6 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
     auto* platform = static_cast<Window *>(glfwGetWindowUserPointer(window));
     if (platform->keyboardCallback)
     {
-        std::cout << "key pressed" << std::endl;
         platform->keyboardCallback(key, action != GLFW_RELEASE);
     }
 }

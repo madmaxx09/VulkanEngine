@@ -5,6 +5,7 @@
 #define VULKAN_HPP_HANDLE_ERROR_OUT_OF_DATE_AS_SUCCESS
 #include "window.h"
 #include "imgui_layer.h"
+#include "camera.h"
 #include <ranges>
 #include <vector>
 #include <array>
@@ -91,7 +92,7 @@ class Renderer
         void init();
         void cleanup();
         void idle() { device.waitIdle(); }
-        void drawFrame(ImguiSystem *imguiSystem);
+        void drawFrame(ImguiSystem *imguiSystem, CameraSystem* camera);
 
         bool framebufferResized = false;
 
@@ -223,7 +224,7 @@ class Renderer
         void createUniformBuffers();
         void createDescriptorPool();
         void createDescriptorSets();
-        void updateUniformBuffer(uint32_t currentImage);
+        void updateUniformBuffer(uint32_t currentImage, CameraSystem* camera);
 	    void createCommandBuffers();
         void createSyncObjects();
 
