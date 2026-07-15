@@ -11,6 +11,9 @@ SRCS = main.cpp \
 	renderer.cpp \
 	imgui_layer.cpp \
 	camera.cpp \
+	component.cpp \
+	transform_component.cpp \
+	entity.cpp \
 	$(IMGUI_DIR)/imgui.cpp \
 	$(IMGUI_DIR)/imgui_draw.cpp \
 	$(IMGUI_DIR)/imgui_tables.cpp \

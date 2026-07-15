@@ -1,16 +1,21 @@
 #include "camera.h"
 
-void CameraSystem::setPosition(glm::vec3 newPosition)
+void CameraSystem::setPosition(const glm::vec3 &newPosition)
 {
     position = newPosition;
-    viewMatrixDirty = true;
-    projectionMatrixDirty = true;
 }
 
-// CameraSystem::CameraSystem()
-// {
-    
-// }
+void CameraSystem::forceMatrixUpdate()
+{
+    viewMatrixDirty = true;
+    //projectionMatrixDirty = true;
+}
+
+void CameraSystem::setRotation(const glm::vec3 &newRotation)
+{
+    rotation = newRotation;
+}
+
 
 const glm::mat4 &CameraSystem::getViewMatrix()
 {
@@ -43,7 +48,7 @@ void CameraSystem::updateViewMatrix()
 
     viewMatrix = glm::inverse(worldNoScale);
 
-    viewMatrixDirty =  false;
+    viewMatrixDirty = false;
 }
 
 void CameraSystem::updateProjectionMatrix()

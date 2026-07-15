@@ -110,8 +110,8 @@ class Renderer
 
     private:
 
-        const std::string MODEL_PATH = "models/viking_room.obj";
-        const std::string TEXTURE_PATH = "textures/viking_room.png";
+        const std::string MODEL_PATH = "models/jeep.obj";
+        const std::string TEXTURE_PATH = "textures/jeep.jpg";
 
         Window &window;
 

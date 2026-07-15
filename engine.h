@@ -4,8 +4,10 @@
 #include "renderer.h"
 #include "imgui_layer.h"
 #include "camera.h"
+#include "entity.h"
 #include <memory>
 #include <chrono>
+#include <vector>
 
 class Engine
 {
@@ -31,6 +33,9 @@ class Engine
         std::unique_ptr<ImguiSystem> imguiSystem;
         std::unique_ptr<CameraSystem> cameraSystem;
 
+
+        std::vector<std::unique_ptr<Entity>> entities;
+
         float mouseX = 0.0f;
         float mouseY = 0.0f;
 
@@ -49,9 +54,14 @@ class Engine
             bool      moveDown                = false;
             bool      mouseLeftPressed        = false;
             bool      mouseRightPressed       = false;
+            bool      firstMouse              = false;
+
+            float     lastMouseX              = 0.0f;
+            float     lastMouseY              = 0.0f;
             float     yaw                     = 0.0f;
             float     pitch                   = 0.0f;
             float     cameraSpeed             = 5.0f;
+            float     mouseSensitivity        = 0.1f;
             glm::quat baseOrientation{1.0f, 0.0f, 0.0f, 0.0f};
         } cameraControl;
 

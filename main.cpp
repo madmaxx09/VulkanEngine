@@ -16,6 +16,7 @@ int main()
     try
     {
         Engine engine;
+        //std::cout << "t " << engine.cameraControl.cameraSpeed << std::endl;
         engine.Start("Max Engine", 1280, 800);
     
         engine.Run();

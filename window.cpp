@@ -28,7 +28,7 @@ void Window::Init(const std::string &name, int height, int width)
     glfwSetCursorPosCallback(window, mousePosCallback);
     glfwSetMouseButtonCallback(window, mouseButtonCallback);
     glfwSetKeyCallback(window, keyCallback);
-    // glfwSetCharCallback(window, CharCallback);
+    glfwSetCharCallback(window, charCallback);
 }
 
 void Window::setMouseCallback(std::function<void(float, float, uint32_t)> callback)
@@ -39,6 +39,11 @@ void Window::setMouseCallback(std::function<void(float, float, uint32_t)> callba
 void Window::setKeyboardCallback(std::function < void(uint32_t, bool) > callback)
 {
     keyboardCallback = std::move(callback);
+}
+
+void Window::setCharCallback(std::function<void(uint32_t)> callback)
+{
+    characterCallback = std::move(callback);
 }
 
 void Window::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
@@ -86,5 +91,14 @@ void Window::keyCallback(GLFWwindow* window, int key, int scancode, int action, 
     if (platform->keyboardCallback)
     {
         platform->keyboardCallback(key, action != GLFW_RELEASE);
+    }
+}
+
+void Window::charCallback(GLFWwindow* window, unsigned int codepoint)
+{
+    auto* platform = static_cast<Window *>(glfwGetWindowUserPointer(window));
+    if (platform->characterCallback)
+    {
+        platform->characterCallback(codepoint);
     }
 }

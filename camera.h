@@ -4,15 +4,6 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 
-enum class CameraMovement {
-    FORWARD,
-    BACKWARD,
-    LEFT,
-    RIGHT,
-    UP,
-    DOWN
-};
-
 class CameraSystem
 {
     public:
@@ -28,9 +19,15 @@ class CameraSystem
         void updateViewMatrix();
         void updateProjectionMatrix();
 
+        void forceMatrixUpdate();
+
 
         glm::vec3 getPosition() const { return position; }
-        void setPosition(glm::vec3 newPosition);
+        void setPosition(const glm::vec3 &newPosition);
+
+        glm::vec3 getRotation() const { return rotation; }
+        void setRotation(const glm::vec3 &newRotation);
+
     private:
         glm::vec3 position = {0.0f, 0.0f, 4.0f};
         glm::vec3 rotation = {0.0f, 0.0f, 0.0f};

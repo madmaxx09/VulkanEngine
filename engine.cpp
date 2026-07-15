@@ -12,19 +12,24 @@ void Engine::Start(const std::string &name, int width, int height)
     });
     renderer.init();
     imguiSystem = std::make_unique<ImguiSystem>(&renderer, width, height);
+    window.setCharCallback([this](uint32_t key) {
+        if (imguiSystem)
+        {
+            imguiSystem->HandleChar(key);
+        }
+    });
     cameraSystem = std::make_unique<CameraSystem>();
-    cameraSystem->setPosition(glm::vec3(0.0f, 0.0f, 3.0f));
-    //cameraSystem
     std::cout << "Engine setup done" << std::endl;
 }
 
 void Engine::Run()
 {
-    deltaTimeMS = CalculateDeltaTimeMs();
+    //std::cout << cameraControl.cameraSpeed << std::endl;
     while(!window.shouldClose())
     {
         glfwPollEvents();
-        imguiSystem->NewFrame();
+        deltaTimeMS = CalculateDeltaTimeMs();
+        imguiSystem->NewFrame(entities);
         updateCameraPosition(deltaTimeMS);
         renderer.drawFrame(imguiSystem.get(), cameraSystem.get());
     }
@@ -39,8 +44,44 @@ void Engine::handleMouseInput(float x, float y, uint32_t buttons)
     {
         if (buttons & 1) //left click
             std::cout << "out of imgui left click" << std::endl;
-        if (buttons & 2) //right click
-            std::cout << "out of imgui right click" << std::endl;
+        else
+            cameraControl.mouseLeftPressed = false;
+
+        if (buttons & 2) //right click when right click handle camera rotation and
+        {
+            if (!cameraControl.mouseRightPressed)
+            {
+                cameraControl.mouseRightPressed = true;
+                cameraControl.firstMouse = true;
+            }
+
+            if (cameraControl.firstMouse)
+            {
+                cameraControl.lastMouseX = x;
+                cameraControl.lastMouseY = y;
+                cameraControl.firstMouse = false;
+            }
+
+            float xOffset = x - cameraControl.lastMouseX;
+            float yOffset = y - cameraControl.lastMouseY;
+            cameraControl.lastMouseX = x;
+            cameraControl.lastMouseY = y;
+
+            xOffset *= cameraControl.mouseSensitivity;
+            yOffset *= cameraControl.mouseSensitivity;
+
+            cameraControl.yaw -= xOffset;
+            cameraControl.pitch -= yOffset;
+            
+            // Constrain pitch to avoid gimbal lock
+            if (cameraControl.pitch > 89.0f)
+                cameraControl.pitch = 89.0f;
+            if (cameraControl.pitch < -89.0f)
+                cameraControl.pitch = -89.0f;
+        }
+        else
+            cameraControl.mouseRightPressed = false;
+        
     }
     if (imguiSystem)
         imguiSystem->HandleMouse(x, y, buttons);
@@ -56,30 +97,53 @@ void Engine::handleMouseHover(float x, float y)
 
 void Engine::handleKeyboardInput(uint32_t key, bool pressed)
 {
-    switch (key) {
-        case GLFW_KEY_UP:
-            cameraControl.moveUp = pressed;
-        case GLFW_KEY_DOWN:
-            cameraControl.moveDown = pressed;
-        case GLFW_KEY_RIGHT:
-            cameraControl.moveRight = pressed;
-        case GLFW_KEY_LEFT:
-            cameraControl.moveLeft = pressed;
+    bool imGuiHandleKeyboard = imguiSystem && imguiSystem->ImGuiWantsKeyboard();
+    //std::cout << imGuiHandleKeyboard << std::endl;
+    if(!imGuiHandleKeyboard)
+    {
+        switch (key) {
+            case GLFW_KEY_UP:
+            case GLFW_KEY_W:
+                cameraControl.moveForward = pressed;
+                break;
+            case GLFW_KEY_DOWN:
+            case GLFW_KEY_S:
+                cameraControl.moveBackward = pressed;
+                break;
+            case GLFW_KEY_RIGHT:
+            case GLFW_KEY_D:
+                cameraControl.moveRight = pressed;
+                break;
+            case GLFW_KEY_LEFT:
+            case GLFW_KEY_A:
+                cameraControl.moveLeft = pressed;
+                break;
+            default:
+                break;
+        }
     }
+    else
+    {
+        imguiSystem->HandleKeyboard(key, pressed);
+    }
+
 }
 
 void Engine::updateCameraPosition(DeltaTime deltaTime)
 {
+    if (!cameraControl.mouseRightPressed)
+        return;
+    
     float velocity = cameraControl.cameraSpeed * deltaTime.count() * .001f;
- 
+
     // Build delta orientation from yaw/pitch mouse deltas (degrees -> radians)
     const float yawRad = glm::radians(cameraControl.yaw);
     const float pitchRad = glm::radians(cameraControl.pitch);
+    
     const glm::quat qDeltaY = glm::angleAxis(yawRad, glm::vec3(0.0f, 1.0f, 0.0f));
     const glm::quat qDeltaX = glm::angleAxis(pitchRad, glm::vec3(1.0f, 0.0f, 0.0f));
     // Apply yaw then pitch in the same convention as CameraComponent (ZYX overall), so delta = Ry * Rx
-    glm::quat qDelta = qDeltaY * qDeltaX;
-    glm::quat qFinal = cameraControl.baseOrientation * qDelta;
+    glm::quat qFinal = qDeltaY * qDeltaX;
     
     // Derive camera basis directly from rotated axes to avoid ambiguity
     glm::vec3 right = glm::normalize(qFinal * glm::vec3(1.0f, 0.0f, 0.0f));
@@ -106,7 +170,10 @@ void Engine::updateCameraPosition(DeltaTime deltaTime)
     
 
     cameraSystem->setPosition(camPosition);
+
+    cameraSystem->setRotation(glm::eulerAngles(qFinal));
     
+    cameraSystem->forceMatrixUpdate();
 }
 
 std::chrono::milliseconds Engine::CalculateDeltaTimeMs()
@@ -119,8 +186,8 @@ std::chrono::milliseconds Engine::CalculateDeltaTimeMs()
 
     // Initialize lastFrameTimeMs on first call
     if (lastFrameTimeMs == 0) {
-    lastFrameTimeMs = currentTime;
-    return std::chrono::milliseconds(16); // ~16ms as a sane initial guess
+        lastFrameTimeMs = currentTime;
+        return std::chrono::milliseconds(16); // ~16ms as a sane initial guess
     }
 
     // Calculate delta time in milliseconds

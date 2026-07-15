@@ -2,6 +2,8 @@
 
 #include <stdexcept>
 #include <vector>
+#include <memory>
+#include "entity.h"
 #define VULKAN_HPP_NO_STRUCT_CONSTRUCTORS
 #include <vulkan/vulkan_raii.hpp>
 #include <glm/glm.hpp>
@@ -25,13 +27,16 @@ class ImguiSystem
 
         ~ImguiSystem() = default;
 
-        void NewFrame();
+        void NewFrame(std::vector<std::unique_ptr<Entity>> &entities);
         void Render(vk::raii::CommandBuffer& commandBuffer, uint32_t frameIndex);
         void updateBuffers(uint32_t frameIndex);
 
         //input handling
         void HandleMouse(float x, float y, uint32_t buttons);
+        void HandleKeyboard(uint32_t key, bool pressed);
+        void HandleChar(uint32_t c);
         bool ImguiWantsMouse() const;
+        bool ImGuiWantsKeyboard() const;
 
         struct PushConstBlock {
             glm::vec2 scale;
@@ -60,6 +65,7 @@ class ImguiSystem
 
         ImGuiContext* _context = nullptr;
         Renderer* _renderer = nullptr;
+        
 
         //Mouse state
         float mouseX = 0.0f;
