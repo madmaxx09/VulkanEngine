@@ -11,7 +11,7 @@ void Engine::Start(const std::string &name, int width, int height)
         handleKeyboardInput(key, pressed);
     });
     renderer.init();
-    imguiSystem = std::make_unique<ImguiSystem>(&renderer, width, height);
+    imguiSystem = std::make_unique<ImguiSystem>(this, &renderer, width, height);
     window.setCharCallback([this](uint32_t key) {
         if (imguiSystem)
         {
@@ -197,4 +197,10 @@ std::chrono::milliseconds Engine::CalculateDeltaTimeMs()
     lastFrameTimeMs = currentTime;
 
     return std::chrono::milliseconds(static_cast<long long>(delta));
+}
+
+void Engine::createEntity(const std::string &name)
+{
+    auto entity = std::make_unique<Entity>(name);
+    entities.push_back(std::move(entity));
 }

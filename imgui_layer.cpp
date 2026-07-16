@@ -4,11 +4,13 @@
 #include "imgui_layer.h"
 #include <iostream>
 #include "renderer.h"
+#include "engine.h"
 
-bool ImguiSystem::init(Renderer* renderer, int width, int height)
+bool ImguiSystem::init(Engine* engine, Renderer* renderer, int width, int height)
 {
 
     _renderer = renderer;
+    _engine = engine;
 
     // Initialize ImGui context
     _context = ImGui::CreateContext();
@@ -190,8 +192,6 @@ void ImguiSystem::HandleKeyboard(uint32_t key, bool pressed)
     ImGuiIO& io = ImGui::GetIO();
     ImGuiKey imguiKey = ConvertKey(key);
     
-    std::cout << imguiKey << std::endl;
-    
     if (imguiKey != ImGuiKey_None)
         io.AddKeyEvent(imguiKey, pressed);
 }
@@ -222,8 +222,7 @@ void ImguiSystem::NewFrame(std::vector<std::unique_ptr<Entity>> &entities)
         
         if (ImGui::Button("Create"))
         {
-            std::cout << entityNameBuffer << std::endl;
-            //CreateEntity(entityNameBuffer);
+            _engine->createEntity(entityNameBuffer);
             std::strcpy(entityNameBuffer, placeholderName);
             ImGui::CloseCurrentPopup();
         }

@@ -27,6 +27,14 @@ class Engine
         void handleMouseInput(float x, float y, uint32_t buttons);
         void handleKeyboardInput(uint32_t key, bool pressed);
 
+        void createEntity(const std::string &name);
+        Entity *getEntity(const std::string &name);
+
+        std::vector<std::unique_ptr<Entity>> &getEntities()
+        {
+            return entities;
+        }
+
     private:
         Window window;
         Renderer renderer;

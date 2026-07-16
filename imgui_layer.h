@@ -10,6 +10,7 @@
 
 
 class Renderer;
+class Engine;
 struct ImGuiContext;
 
 class ImguiSystem
@@ -17,9 +18,9 @@ class ImguiSystem
     public:
         ImguiSystem() = default;
 
-        ImguiSystem(Renderer* renderer, int width, int height)
+        ImguiSystem(Engine* engine, Renderer* renderer, int width, int height)
         {
-            if (!init(renderer, width, height))
+            if (!init(engine, renderer, width, height))
             {
                 throw std::runtime_error("Imgui init failed");
             }
@@ -51,7 +52,7 @@ class ImguiSystem
 
     private:
 
-        bool init(Renderer* renderer, int width, int height);
+        bool init(Engine* engine, Renderer* renderer, int width, int height);
         bool createRessources();
 
         bool createFontTexture();
@@ -65,6 +66,7 @@ class ImguiSystem
 
         ImGuiContext* _context = nullptr;
         Renderer* _renderer = nullptr;
+        Engine* _engine = nullptr;
         
 
         //Mouse state
