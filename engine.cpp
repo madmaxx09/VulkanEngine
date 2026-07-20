@@ -3,6 +3,7 @@
 
 void Engine::Start(const std::string &name, int width, int height)
 {
+    //window = std::make_unique<Window>();
     window.Init(name, height, width);
     window.setMouseCallback([this](float x, float y, uint32_t buttons) {
         handleMouseInput(x, y, buttons);
@@ -19,6 +20,7 @@ void Engine::Start(const std::string &name, int width, int height)
         }
     });
     cameraSystem = std::make_unique<CameraSystem>();
+    modelLoader = std::make_unique<ModelLoader>(&renderer);
     std::cout << "Engine setup done" << std::endl;
 }
 

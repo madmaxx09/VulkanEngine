@@ -6,6 +6,7 @@
 #include "window.h"
 #include "imgui_layer.h"
 #include "camera.h"
+#include "mesh_component.h"
 #include <ranges>
 #include <vector>
 #include <array>
@@ -31,31 +32,31 @@
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
-struct Vertex
-{
-	glm::vec3 pos;
-	glm::vec3 color;
-    glm::vec2 texCoord;
+// struct Vertex
+// {
+// 	glm::vec3 pos;
+// 	glm::vec3 color;
+//     glm::vec2 texCoord;
 
-    bool operator==(const Vertex& other) const
-    {
-        return pos == other.pos && color == other.color && texCoord == other.texCoord;
-    }
+//     bool operator==(const Vertex& other) const
+//     {
+//         return pos == other.pos && color == other.color && texCoord == other.texCoord;
+//     }
 
-	static vk::VertexInputBindingDescription getBindingDescription()
-	{
-		return {0, sizeof(Vertex), vk::VertexInputRate::eVertex};
-	}
+// 	static vk::VertexInputBindingDescription getBindingDescription()
+// 	{
+// 		return {0, sizeof(Vertex), vk::VertexInputRate::eVertex};
+// 	}
 
-	static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
-	{
-		return {
-		    vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, pos)),
-		    vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, color)),
-            vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord))
-        };
-	}
-};
+// 	static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescriptions()
+// 	{
+// 		return {
+// 		    vk::VertexInputAttributeDescription(0, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, pos)),
+// 		    vk::VertexInputAttributeDescription(1, 0, vk::Format::eR32G32B32Sfloat, offsetof(Vertex, color)),
+//             vk::VertexInputAttributeDescription(2, 0, vk::Format::eR32G32Sfloat, offsetof(Vertex, texCoord))
+//         };
+// 	}
+// };
 
 template <>
 struct std::hash<Vertex>

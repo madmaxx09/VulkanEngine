@@ -61,7 +61,7 @@ class Entity
 			components.push_back(std::move(component));
 
 			// Initialize the component
-			componentPtr->Initialize();
+			componentPtr->initialize();
 
 			return componentPtr;
 		}
@@ -105,4 +105,6 @@ class Entity
 			static_assert(std::is_base_of<Component, T>::value, "T must derive from Component");
 			return GetComponent<T>() != nullptr;
 		}
+
+		//std::vector<std::unique_ptr<Component>> &getComponents()
 };

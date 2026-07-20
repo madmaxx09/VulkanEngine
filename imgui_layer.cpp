@@ -5,6 +5,8 @@
 #include <iostream>
 #include "renderer.h"
 #include "engine.h"
+#include "transform_component.h"
+#include "mesh_component.h"
 
 bool ImguiSystem::init(Engine* engine, Renderer* renderer, int width, int height)
 {
@@ -240,10 +242,75 @@ void ImguiSystem::NewFrame(std::vector<std::unique_ptr<Entity>> &entities)
 
     ImGui::Begin("Entities");
 
-    ImGui::BeginChild("EntityList", ImVec2(0, 200), true);
+    //ImGui::BeginChild("EntityList", ImVec2(0, 200), true);
     for (auto& entity : entities)
-        ImGui::Text("%s", entity.get()->GetName().c_str());
-    ImGui::EndChild();
+    {
+        if (ImGui::TreeNode(entity.get(), "%s", entity.get()->GetName().c_str()))
+        {
+            auto transformComp = entity->GetComponent<TransformComponent>();
+            auto meshComp = entity->GetComponent<MeshComponent>();
+            if (transformComp != nullptr)
+            {
+                if (ImGui::TreeNode(transformComp, "%s", transformComp->GetName().c_str()))
+                {
+                    glm::vec3 position = transformComp->GetPosition();
+                    if (ImGui::DragFloat3("Position", &position.x, 0.1f))
+                        transformComp->SetPosition(position);
+    
+                    glm::vec3 rotation = transformComp->GetRotation();
+                    if (ImGui::DragFloat3("Rotation", &rotation.x, 1.0f))
+                        transformComp->SetRotation(rotation);
+    
+                    glm::vec3 scale = transformComp->GetScale();
+                    if (ImGui::DragFloat3("Scale", &scale.x, 0.1f))
+                        transformComp->SetScale(scale);
+                    if (ImGui::Button("Delete component"))
+                    {
+                        ImGui::OpenPopup("Are you sure ?");
+                    }
+                    if (ImGui::BeginPopupModal("Are you sure ?"))
+                    {
+                        if (ImGui::Button("Yes"))
+                        {
+                            entity->RemoveComponent<TransformComponent>();
+                            ImGui::CloseCurrentPopup();
+                        }
+                        ImGui::SameLine();
+                        if (ImGui::Button("Cancel"))
+                        {
+                            ImGui::CloseCurrentPopup();
+                        }
+                        ImGui::EndPopup();
+                    }
+                    
+                    ImGui::TreePop();
+                }
+
+            }
+
+            if (ImGui::Button("AddComponent"))
+            {
+                ImGui::OpenPopup("AddComponent");
+            }
+
+            if (ImGui::BeginPopup("AddComponent"))
+            {
+                if (!transformComp)
+                {
+                    if (ImGui::MenuItem("TransformComponent"))
+                        entity->AddComponent<TransformComponent>();
+                }
+                if (!meshComp)
+                {
+                    if (ImGui::MenuItem("Model"))
+                        _engine->loadGltfModel(std::string("./models/Avocado.glb"));
+                }
+
+                ImGui::EndPopup();
+            }
+            ImGui::TreePop();
+        }
+    }
     ImGui::End();
     
 }

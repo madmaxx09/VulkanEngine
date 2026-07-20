@@ -5,6 +5,7 @@
 #include "imgui_layer.h"
 #include "camera.h"
 #include "entity.h"
+#include "model.h"
 #include <memory>
 #include <chrono>
 #include <vector>
@@ -35,9 +36,15 @@ class Engine
             return entities;
         }
 
-    private:
+        Model *loadGltfModel(const std::string pathToFile) {
+            return modelLoader->loadGltfModel(pathToFile);
+        }
+
+        private:
+        //std::unique_ptr<Window> window;
         Window window;
         Renderer renderer;
+        std::unique_ptr<ModelLoader> modelLoader;
         std::unique_ptr<ImguiSystem> imguiSystem;
         std::unique_ptr<CameraSystem> cameraSystem;
 
@@ -74,4 +81,6 @@ class Engine
         } cameraControl;
 
         void handleMouseHover(float x, float y);
+
+
 };

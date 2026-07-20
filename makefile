@@ -3,9 +3,9 @@ MAKEFLAGS += -j$(shell nproc)
 NAME = engine
 
 IMGUI_DIR = external/imgui
-OBJ_DIR = objs
+TINYGLTF_DIR = external/tinygltf
 
-SRCS = main.cpp \
+CPPSRCS = main.cpp \
 	engine.cpp \
 	window.cpp \
 	renderer.cpp \
@@ -13,7 +13,10 @@ SRCS = main.cpp \
 	camera.cpp \
 	component.cpp \
 	transform_component.cpp \
+	mesh_component.cpp \
 	entity.cpp \
+	model.cpp \
+	tinygltfloader.cpp \
 	$(IMGUI_DIR)/imgui.cpp \
 	$(IMGUI_DIR)/imgui_draw.cpp \
 	$(IMGUI_DIR)/imgui_tables.cpp \
@@ -21,7 +24,13 @@ SRCS = main.cpp \
 	$(IMGUI_DIR)/imgui_impl_glfw.cpp \
 	$(IMGUI_DIR)/imgui_impl_vulkan.cpp
 
-OBJS = $(SRCS:.cpp=.o)
+CSRCS = $(TINYGLTF_DIR)/tiny.c \
+		$(TINYGLTF_DIR)/tiny_gltf_v3.c 
+
+OBJS = $(CPPSRCS:.cpp=.o) $(CSRCS:.c=.o)
+
+CC = cc
+CFLAGS = -std=c11 -isystem external -I$(TINYGLTF_DIR) -DTINYGLTF3_ENABLE_FS
 
 CXX = c++
 CXXFLAGS = -std=c++20 -isystem external -I$(IMGUI_DIR)
@@ -38,9 +47,11 @@ $(NAME): $(OBJS)
 	bash shaders/compile.sh
 	$(CXX) -o $@ $^ $(LIBS)
 
-$(OBJ_DIR)/%.o: %.cpp
-	mkdir -p $(OBJ_DIR)
+%.o: %.cpp
 	$(CXX) $(CXXFLAGS) -c $< -o $@
+
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJS)
