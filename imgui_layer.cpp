@@ -3,6 +3,7 @@
 #include "external/imgui/imgui_impl_vulkan.h"
 #include "imgui_layer.h"
 #include <iostream>
+#include <filesystem>
 #include "renderer.h"
 #include "engine.h"
 #include "transform_component.h"
@@ -300,13 +301,47 @@ void ImguiSystem::NewFrame(std::vector<std::unique_ptr<Entity>> &entities)
                     if (ImGui::MenuItem("TransformComponent"))
                         entity->AddComponent<TransformComponent>();
                 }
-                if (!meshComp)
+                if (ImGui::BeginMenu("Model"))
                 {
-                    if (ImGui::MenuItem("Model"))
-                        _engine->loadGltfModel(std::string("./models/Avocado.glb"));
+                    ImGui::Text("Loaded models :");
+                    for (auto &modelName : _engine->getModelNames())
+                    {
+                        if (ImGui::MenuItem(modelName.c_str()))
+                        {
+                            std::cout << "Selected " << modelName << std::endl;
+                        }
+                    }
+                    if (ImGui::MenuItem("Load new Model"))
+                    {
+                        fileBrowser = true;
+                    }
+                    ImGui::EndMenu();
                 }
-
                 ImGui::EndPopup();
+            }
+            if (fileBrowser)
+            {
+                ImGui::OpenPopup("Select file");
+                if (ImGui::BeginPopup("Select file"))
+                {
+                    std::filesystem::path modelPath = "./models";
+                    if (std::filesystem::exists(modelPath))
+                    {
+                        for (auto file : std::filesystem::directory_iterator(modelPath))
+                        {
+                            if (ImGui::MenuItem(file.path().c_str()))
+                            {
+                                _engine->loadGltfModel(file.path());
+                                fileBrowser = false;
+                            }
+                        }
+                    }
+                    if (ImGui::Button("Close"))
+                    {
+                        fileBrowser = false;
+                    }
+                    ImGui::EndPopup();
+                }
             }
             ImGui::TreePop();
         }

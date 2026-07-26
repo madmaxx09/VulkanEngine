@@ -51,7 +51,13 @@ bool loadModel(const std::string &pathToFile, Model &toLoadIn)
             for (uint32_t attrIndex = 0; attrIndex < primitive.attributes_count; attrIndex++)
             {
                 const auto& attr = primitive.attributes[attrIndex];
-                std::cout << std::string(attr.key.data, attr.key.len) << std::endl;;
+
+                std::cout << std::string(attr.key.data, attr.key.len) << std::endl;
+                std::cout << attr.value << std::endl;
+                // std::cout << std::string(primitive.targets[0]->key.data, primitive.targets[0]->key.len) << std::endl;
+                // std::cout << primitive.targets[0]->value << std::endl;
+
+                tg_model.acc
             }
         }
     }

@@ -40,6 +40,12 @@ class Engine
             return modelLoader->loadGltfModel(pathToFile);
         }
 
+        std::vector<std::string> getModelNames() {
+            return modelLoader->getLoadedModelsNames();
+        }
+
+
+
         private:
         //std::unique_ptr<Window> window;
         Window window;

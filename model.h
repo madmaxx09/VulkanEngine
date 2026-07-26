@@ -43,7 +43,16 @@ class ModelLoader
 
         //bool loadSceneTroughGltf();     
 
+        std::vector<std::string> getLoadedModelsNames() {
+            std::vector<std::string> names;
 
+            for (auto &model : models)
+            {
+                names.push_back(model.first);
+            }
+            return names;
+        };
+        
     
     private:
         bool init(Renderer *renderer) 

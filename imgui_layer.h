@@ -67,6 +67,8 @@ class ImguiSystem
         ImGuiContext* _context = nullptr;
         Renderer* _renderer = nullptr;
         Engine* _engine = nullptr;
+
+        bool fileBrowser = false;
         
 
         //Mouse state
